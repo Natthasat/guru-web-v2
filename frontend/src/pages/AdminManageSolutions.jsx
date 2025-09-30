@@ -120,6 +120,10 @@ function AdminManageSolutions() {
       // ต้องส่ง question_id ด้วย ตาม backend FastAPI
       if (editingSolution.question && editingSolution.question.id) {
         submitData.append('question_id', editingSolution.question.id);
+      } else {
+        setMessage('ไม่พบข้อมูล question_id ของโจทย์นี้ กรุณาตรวจสอบข้อมูลโจทย์ก่อนแก้ไขเฉลย');
+        setLoading(false);
+        return;
       }
       submitData.append('answer_text', formData.answer_text || '');
       if (formData.answer_img) {
@@ -160,12 +164,19 @@ function AdminManageSolutions() {
     }
   };
 
-  const filteredSolutions = solutions.filter(solution =>
-    solution.question?.book_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    solution.answer_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    solution.question?.page?.toString().includes(searchTerm) ||
-    solution.question?.question_no?.toString().includes(searchTerm)
-  );
+  const filteredSolutions = searchTerm.trim() === ''
+    ? solutions
+    : solutions.filter(solution => {
+        const search = searchTerm.toLowerCase();
+        return (
+          (solution.question && (
+            solution.question.book_id?.toLowerCase().includes(search) ||
+            solution.question.page?.toString().includes(search) ||
+            solution.question.question_no?.toString().includes(search)
+          )) ||
+          solution.answer_text?.toLowerCase().includes(search)
+        );
+      });
 
   const totalPages = Math.ceil(filteredSolutions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -215,7 +226,7 @@ function AdminManageSolutions() {
       {/* Main Content */}
       <div className="flex items-center justify-center py-8 px-4">
         <div className="max-w-4xl w-full">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-8">
+          <div className="p-8">
             {/* Search Bar */}
             <div className="mb-6">
               <input
@@ -230,9 +241,10 @@ function AdminManageSolutions() {
             {/* Edit Form Modal */}
             {editingSolution && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-8 max-w-2xl w-full max-h-screen overflow-y-auto m-4">
-                  <h3 className="text-xl font-bold text-white mb-4">แก้ไขเฉลย</h3>
-                  <form onSubmit={handleUpdate} className="space-y-6">
+                <div className="max-w-2xl w-full max-h-screen overflow-y-auto mt-0">
+                  <div className="bg-black rounded-2xl p-8">
+                    <h3 className="text-xl font-bold text-white mb-4">แก้ไขเฉลย</h3>
+                    <form onSubmit={handleUpdate} className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-white/90 mb-2">
                         คำตอบ (Answer Text)
@@ -296,7 +308,8 @@ function AdminManageSolutions() {
                         ยกเลิก
                       </button>
                     </div>
-                  </form>
+                    </form>
+                  </div>
                 </div>
               </div>
             )}
@@ -329,7 +342,15 @@ function AdminManageSolutions() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-4 mb-2">
                         <h3 className="text-lg font-semibold text-white">
-                          {solution.question?.book_id || '-'} หน้า {solution.question?.page || '-'} ข้อ {solution.question?.question_no || '-'}
+                          {solution.question ? (
+                            <>
+                              <span className="font-bold">รหัสหนังสือ:</span> {solution.question.book_id || '-'}
+                              {' '}<span className="font-bold">หน้า:</span> {solution.question.page || '-'}
+                              {' '}<span className="font-bold">ข้อ:</span> {solution.question.question_no || '-'}
+                            </>
+                          ) : (
+                            <span className="text-red-400">ไม่มีข้อมูลโจทย์</span>
+                          )}
                         </h3>
                         <span className="text-sm text-white/60">
                           ID: {solution.id}

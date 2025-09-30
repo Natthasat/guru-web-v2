@@ -5,6 +5,7 @@ import AdminAddSolution from './pages/AdminAddSolution';
 import AdminManageQuestions from './pages/AdminManageQuestions';
 import AdminManageSolutions from './pages/AdminManageSolutions';
 import Login from './pages/Login';
+import SolutionSearch from './pages/SolutionSearch';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
                 <AdminManageSolutions />
               </ProtectedRoute>
             } />
+              <Route path="/student/solution-search" element={<SolutionSearch />} />
           </Routes>
         </main>
       </div>

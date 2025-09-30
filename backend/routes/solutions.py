@@ -23,7 +23,7 @@ class SolutionResponse(BaseModel):
     answer_text: Optional[str] = None
     answer_img: Optional[str] = None
     created_at: datetime
-    
+    question: Optional[dict] = None
     class Config:
         from_attributes = True
 
@@ -88,9 +88,26 @@ async def create_solution(
 
 @router.get("/solutions", response_model=List[SolutionResponse])
 async def get_all_solutions(db: Session = Depends(get_db)):
-    """ดูเฉลยทั้งหมด"""
+    """ดูเฉลยทั้งหมด (พร้อมข้อมูลโจทย์)"""
     solutions = db.query(Solution).all()
-    return solutions
+    result = []
+    for s in solutions:
+        # include question info
+        q = db.query(Question).filter(Question.id == s.question_id).first()
+        s_dict = s.__dict__.copy()
+        if q:
+            s_dict['question'] = {
+                'id': q.id,
+                'book_id': q.book_id,
+                'page': q.page,
+                'question_no': q.question_no,
+                'question_text': q.question_text,
+                'question_img': q.question_img,
+            }
+        else:
+            s_dict['question'] = None
+        result.append(s_dict)
+    return result
 
 @router.get("/solutions/{question_id}", response_model=List[SolutionResponse])
 async def get_solutions_by_question(question_id: int, db: Session = Depends(get_db)):
