@@ -63,6 +63,9 @@ const Login = () => {
         // อัพเดท state เพื่อแสดงเมนู admin
         setIsLoggedIn(true);
         setLoggedInUsername(username);
+        
+        // เปลี่ยนไปหน้า dashboard
+        navigate('/admin/dashboard');
       }
     } catch (error) {
       console.error('Login error:', error);

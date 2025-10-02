@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -94,7 +94,13 @@ async def get_all_solutions(db: Session = Depends(get_db)):
     for s in solutions:
         # include question info
         q = db.query(Question).filter(Question.id == s.question_id).first()
-        s_dict = s.__dict__.copy()
+        s_dict = {
+            'id': s.id,
+            'question_id': s.question_id,  # ให้แน่ใจว่ามี question_id
+            'answer_text': s.answer_text,
+            'answer_img': s.answer_img,
+            'created_at': s.created_at
+        }
         if q:
             s_dict['question'] = {
                 'id': q.id,
@@ -137,31 +143,34 @@ async def update_solution(
     # จัดการการอัปโหลดรูปภาพใหม่
     image_filename = solution.answer_img  # เก็บรูปเก่าไว้ก่อน
     if answer_img and answer_img.filename:
-        # ลบรูปเก่า (ถ้ามี)
-        if solution.answer_img:
-            old_image_path = Path("uploads") / solution.answer_img.replace("uploads/", "")
-            if old_image_path.exists():
-                old_image_path.unlink()
-        
-        # ตรวจสอบประเภทไฟล์
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif'}
-        file_extension = Path(answer_img.filename).suffix.lower()
-        if file_extension not in allowed_extensions:
-            raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF allowed.")
-        
-        # สร้างชื่อไฟล์ใหม่
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = Path("uploads") / unique_filename
-        
-        # สร้างโฟลเดอร์ถ้าไม่มี
-        file_path.parent.mkdir(exist_ok=True)
-        
-        # บันทึกไฟล์
-        with open(file_path, "wb") as buffer:
-            content = await answer_img.read()
-            buffer.write(content)
-        
-        image_filename = f"uploads/{unique_filename}"
+        try:
+            # ลบรูปเก่า (ถ้ามี)
+            if solution.answer_img and solution.answer_img.startswith("uploads/"):
+                old_image_path = Path("backend") / solution.answer_img
+                if old_image_path.exists():
+                    old_image_path.unlink()
+            
+            # ตรวจสอบประเภทไฟล์
+            allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif'}
+            file_extension = Path(answer_img.filename).suffix.lower()
+            if file_extension not in allowed_extensions:
+                raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF allowed.")
+            
+            # สร้างชื่อไฟล์ใหม่
+            unique_filename = f"{uuid.uuid4()}{file_extension}"
+            uploads_dir = Path("backend/uploads")
+            uploads_dir.mkdir(exist_ok=True)
+            file_path = uploads_dir / unique_filename
+            
+            # บันทึกไฟล์
+            with open(file_path, "wb") as buffer:
+                content = await answer_img.read()
+                buffer.write(content)
+            
+            image_filename = f"uploads/{unique_filename}"
+        except Exception as e:
+            print(f"Error handling file upload: {e}")
+            raise HTTPException(status_code=500, detail=f"File upload error: {str(e)}")
     
     # อัพเดทข้อมูลในฐานข้อมูล
     solution.question_id = question_id
@@ -170,7 +179,26 @@ async def update_solution(
     
     db.commit()
     db.refresh(solution)
-    return solution
+    
+    # ส่งคืนข้อมูลในรูปแบบ dictionary เพื่อให้ compatible กับ Pydantic
+    updated_solution = db.query(Solution).filter(Solution.id == solution_id).first()
+    question = db.query(Question).filter(Question.id == updated_solution.question_id).first()
+    
+    return {
+        'id': updated_solution.id,
+        'question_id': updated_solution.question_id,
+        'answer_text': updated_solution.answer_text,
+        'answer_img': updated_solution.answer_img,
+        'created_at': updated_solution.created_at,
+        'question': {
+            'id': question.id,
+            'book_id': question.book_id,
+            'page': question.page,
+            'question_no': question.question_no,
+            'question_text': question.question_text,
+            'question_img': question.question_img,
+        } if question else None
+    }
 
 @router.delete("/solutions/{solution_id}")
 async def delete_solution(solution_id: int, db: Session = Depends(get_db)):

@@ -42,6 +42,7 @@ function AdminManageSolutions() {
 
   const handleDelete = async (solutionId) => {
     if (!window.confirm('คุณต้องการลบเฉลยนี้หรือไม่?')) return;
+
     try {
       await axios.delete(`${API_BASE_URL}/solutions/${solutionId}`);
       setMessage('ลบเฉลยสำเร็จแล้ว');
@@ -52,12 +53,17 @@ function AdminManageSolutions() {
   };
 
   const handleEdit = (solution) => {
+    console.log('Editing solution:', solution); // Debug log
     setEditingSolution(solution);
     setFormData({
       answer_text: solution.answer_text || '',
       answer_img: null
     });
-    setImagePreview(null);
+    if (solution.answer_img) {
+      setImagePreview(getImageUrl(solution.answer_img));
+    } else {
+      setImagePreview(null);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -80,26 +86,32 @@ function AdminManageSolutions() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const maxSize = 5 * 1024 * 1024;
+      // ตรวจสอบขนาดไฟล์ (จำกัดที่ 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
         setMessage('ไฟล์มีขนาดใหญ่เกินไป (จำกัดที่ 5MB)');
         return;
       }
+
+      // ตรวจสอบประเภทไฟล์
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         setMessage('ประเภทไฟล์ไม่รองรับ กรุณาใช้ JPG, PNG หรือ GIF');
         return;
       }
+
       setFormData(prev => ({
         ...prev,
         answer_img: file
       }));
+      
+      // แสดงตัวอย่างรูปภาพ
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(e.target.result);
       };
       reader.readAsDataURL(file);
-      setMessage('');
+      setMessage(''); // ล้างข้อความ error
     }
   };
 
@@ -115,74 +127,86 @@ function AdminManageSolutions() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+
     try {
-      const submitData = new FormData();
-      // ต้องส่ง question_id ด้วย ตาม backend FastAPI
-      if (editingSolution.question && editingSolution.question.id) {
-        submitData.append('question_id', editingSolution.question.id);
-      } else {
-        setMessage('ไม่พบข้อมูล question_id ของโจทย์นี้ กรุณาตรวจสอบข้อมูลโจทย์ก่อนแก้ไขเฉลย');
+      // ตรวจสอบว่ามี editingSolution และ question_id
+      if (!editingSolution || !editingSolution.question_id) {
+        setMessage('เกิดข้อผิดพลาด: ไม่พบข้อมูลโจทย์ที่เชื่อมโยง');
         setLoading(false);
         return;
       }
+
+      console.log('Updating solution:', {
+        id: editingSolution.id,
+        question_id: editingSolution.question_id,
+        answer_text: formData.answer_text,
+        has_image: !!formData.answer_img
+      });
+
+      // สร้าง FormData สำหรับอัปโหลดไฟล์
+      const submitData = new FormData();
+      submitData.append('question_id', editingSolution.question_id.toString());
       submitData.append('answer_text', formData.answer_text || '');
+      
       if (formData.answer_img) {
         submitData.append('answer_img', formData.answer_img);
       }
+
       const response = await axios.put(`${API_BASE_URL}/solutions/${editingSolution.id}`, submitData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000, // 30 seconds timeout
       });
-      setMessage('แก้ไขเฉลยสำเร็จแล้ว!');
-      handleCancelEdit();
-      fetchSolutions();
+
+      console.log('Update response:', response.data);
+      setMessage('✅ แก้ไขเฉลยสำเร็จแล้ว! กำลังอัพเดทข้อมูล...');
+      
+      // รอสักครู่ก่อนปิด modal และรีเฟรชข้อมูล
+      setTimeout(async () => {
+        try {
+          await fetchSolutions();
+          handleCancelEdit();
+          setMessage('🎉 อัพเดทข้อมูลเรียบร้อยแล้ว!');
+          // ล้างข้อความหลังจาก 3 วินาที
+          setTimeout(() => setMessage(''), 3000);
+        } catch (refreshError) {
+          console.error('Error refreshing data:', refreshError);
+          setMessage('⚠️ บันทึกสำเร็จ แต่ไม่สามารถรีเฟรชข้อมูลได้ กรุณารีเฟรชหน้าจอ');
+        }
+      }, 1500);
     } catch (error) {
       console.error('Error updating solution:', error);
-      let errMsg = 'เกิดข้อผิดพลาด: ';
       if (error.response) {
-        if (error.response.status === 422 && error.response.data && error.response.data.detail) {
-          // FastAPI validation error
-          if (Array.isArray(error.response.data.detail)) {
-            errMsg += error.response.data.detail.map(e => e.msg).join(', ');
-          } else {
-            errMsg += error.response.data.detail;
-          }
-        } else if (typeof error.response.data === 'string') {
-          errMsg += error.response.data;
-        } else if (error.response.data.message) {
-          errMsg += error.response.data.message;
-        } else {
-          errMsg += JSON.stringify(error.response.data);
-        }
+        console.error('Response error:', error.response.data);
+        const errorMsg = error.response.data.detail || error.response.data.message || `HTTP ${error.response.status}`;
+        setMessage(`เกิดข้อผิดพลาด: ${errorMsg}`);
+      } else if (error.request) {
+        console.error('Request error:', error.request);
+        setMessage('เกิดข้อผิดพลาด: ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
       } else {
-        errMsg += error.message || 'Network Error';
+        console.error('Network error:', error.message);
+        setMessage(`เกิดข้อผิดพลาด: ${error.message}`);
       }
-      setMessage(errMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredSolutions = searchTerm.trim() === ''
-    ? solutions
-    : solutions.filter(solution => {
-        const search = searchTerm.toLowerCase();
-        return (
-          (solution.question && (
-            solution.question.book_id?.toLowerCase().includes(search) ||
-            solution.question.page?.toString().includes(search) ||
-            solution.question.question_no?.toString().includes(search)
-          )) ||
-          solution.answer_text?.toLowerCase().includes(search)
-        );
-      });
+  const filteredSolutions = solutions.filter(solution =>
+    solution.question?.book_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    solution.answer_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    solution.question?.page?.toString().includes(searchTerm) ||
+    solution.question?.question_no?.toString().includes(searchTerm)
+  );
 
+  // Pagination
   const totalPages = Math.ceil(filteredSolutions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentSolutions = filteredSolutions.slice(startIndex, endIndex);
 
+  // ฟังก์ชันไปหน้าถัดไป/ก่อนหน้า
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -199,6 +223,7 @@ function AdminManageSolutions() {
     setCurrentPage(page);
   };
 
+  // รีเซ็ตหน้าเมื่อค้นหา
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -209,17 +234,11 @@ function AdminManageSolutions() {
       <div className="bg-white/10 backdrop-blur-sm border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-blue-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">🧮</span>
+            <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">✅</span>
             </div>
             <h1 className="text-2xl font-bold text-white">จัดการเฉลยทั้งหมด</h1>
           </div>
-          <button
-            onClick={() => window.history.back()}
-            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg border border-white/30 transition-all duration-200 backdrop-blur-sm"
-          >
-            ← กลับ
-          </button>
         </div>
       </div>
 
@@ -227,59 +246,81 @@ function AdminManageSolutions() {
       <div className="flex items-center justify-center py-8 px-4">
         <div className="max-w-4xl w-full">
           <div className="p-8">
+            {/* Back Button - Top Left */}
+            <div className="mb-6">
+              <button
+                onClick={() => window.history.back()}
+                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg border border-white/30 transition-all duration-200 backdrop-blur-sm flex items-center space-x-2"
+              >
+                <span>←</span>
+                <span>กลับ</span>
+              </button>
+            </div>
+            
             {/* Search Bar */}
             <div className="mb-6">
               <input
                 type="text"
-                placeholder="ค้นหาเฉลย (รหัสหนังสือ, หน้า, ข้อที่, หรือข้อความเฉลย)"
+                placeholder="ค้นหาเฉลย (รหัสหนังสือ, หน้า, ข้อที่, หรือข้อความคำตอบ)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
               />
             </div>
 
             {/* Edit Form Modal */}
             {editingSolution && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="max-w-2xl w-full max-h-screen overflow-y-auto mt-0">
-                  <div className="bg-black rounded-2xl p-8">
-                    <h3 className="text-xl font-bold text-white mb-4">แก้ไขเฉลย</h3>
-                    <form onSubmit={handleUpdate} className="space-y-6">
+              <div className="fixed inset-0 bg-white bg-opacity-80 flex items-start justify-center z-50">
+                      <div className="max-w-2xl w-full flex flex-col mt-2">
+                        <div className="bg-white rounded-2xl p-8 shadow-2xl">
+                          <h3 className="text-xl font-bold text-black mb-2">แก้ไขเฉลย</h3>
+                          {editingSolution.question && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-sm text-blue-800">
+                                <strong>โจทย์:</strong> {editingSolution.question.book_id} หน้า {editingSolution.question.page} ข้อ {editingSolution.question.question_no}
+                              </p>
+                              <p className="text-xs text-blue-600 mt-1">
+                                ID: {editingSolution.id} | Question ID: {editingSolution.question_id}
+                              </p>
+                            </div>
+                          )}
+                          <form onSubmit={handleUpdate} className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">
-                        คำตอบ (Answer Text)
+                      <label className="block text-sm font-medium text-black mb-2">
+                        ✏️ คำตอบ (Answer Text)
                       </label>
                       <textarea
                         name="answer_text"
                         value={formData.answer_text}
                         onChange={handleInputChange}
-                        rows="4"
-                        className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200 resize-none"
-                        placeholder="พิมพ์คำตอบที่นี่ (ถ้ามี)"
+                        rows="6"
+                        className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 resize-none"
+                        placeholder="พิมพ์คำตอบที่นี่..."
                       />
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">
-                        รูปภาพเฉลย (Answer Image)
+                      <label className="block text-sm font-medium text-black mb-2">
+                        🖼️ รูปภาพคำตอบ (Answer Image)
                       </label>
                       <div className="space-y-3">
                         <input
                           type="file"
                           onChange={handleImageChange}
                           accept="image/jpeg,image/jpg,image/png,image/gif"
-                          className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                          className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200"
                         />
                         {imagePreview && (
-                          <div className="relative bg-white/5 rounded-xl p-4 border border-white/20">
+                          <div className="relative bg-gray-100 rounded-xl p-4 border border-gray-300">
                             <img
                               src={imagePreview}
                               alt="Preview"
-                              className="max-w-full h-auto max-h-64 mx-auto rounded-lg border border-white/30"
+                              className="max-w-full h-auto max-h-64 mx-auto rounded-lg border border-gray-300"
                             />
                             <button
                               type="button"
                               onClick={removeImage}
-                              className="absolute top-6 right-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm"
+                              className="absolute top-6 right-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2 transition-all duration-200"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -287,23 +328,29 @@ function AdminManageSolutions() {
                             </button>
                           </div>
                         )}
-                        <p className="text-sm text-white/60">
+                        <p className="text-sm text-gray-500">
                           รองรับไฟล์ JPG, PNG, GIF ขนาดไม่เกิน 5MB
                         </p>
                       </div>
                     </div>
+
                     <div className="flex space-x-4">
                       <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                       >
-                        {loading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            กำลังบันทึก...
+                          </div>
+                        ) : 'บันทึกการแก้ไข'}
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gray-500/80 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-black bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
                       >
                         ยกเลิก
                       </button>
@@ -342,15 +389,10 @@ function AdminManageSolutions() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-4 mb-2">
                         <h3 className="text-lg font-semibold text-white">
-                          {solution.question ? (
-                            <>
-                              <span className="font-bold">รหัสหนังสือ:</span> {solution.question.book_id || '-'}
-                              {' '}<span className="font-bold">หน้า:</span> {solution.question.page || '-'}
-                              {' '}<span className="font-bold">ข้อ:</span> {solution.question.question_no || '-'}
-                            </>
-                          ) : (
-                            <span className="text-red-400">ไม่มีข้อมูลโจทย์</span>
-                          )}
+                          {solution.question ? 
+                            `${solution.question.book_id} หน้า ${solution.question.page} ข้อ ${solution.question.question_no}` :
+                            'ข้อมูลโจทย์ไม่พบ'
+                          }
                         </h3>
                         <span className="text-sm text-white/60">
                           ID: {solution.id}
@@ -361,28 +403,57 @@ function AdminManageSolutions() {
                           </span>
                         )}
                       </div>
-                      {solution.answer_text && (
-                        <p className="text-white/80 mb-3">
-                          {solution.answer_text}
-                        </p>
-                      )}
-                      {solution.answer_img && (
-                        <div className="mb-3">
-                          <img
-                            src={getImageUrl(solution.answer_img)}
-                            alt="Answer"
-                            className="max-w-xs h-auto rounded-lg border border-white/30"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                      
+                      {/* แสดงข้อมูลโจทย์ */}
+                      {solution.question && (
+                        <div className="mb-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                          <h4 className="text-white/80 font-medium mb-2">📝 โจทย์:</h4>
+                          {solution.question.question_text && (
+                            <p className="text-white/70 mb-2">
+                              {solution.question.question_text}
+                            </p>
+                          )}
+                          {solution.question.question_img && (
+                            <div className="mb-2">
+                              <img
+                                src={getImageUrl(solution.question.question_img)}
+                                alt="Question"
+                                className="max-w-xs h-auto rounded-lg border border-white/30"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
+                      
+                      {/* แสดงเฉลย */}
+                      <div className="mb-3 p-3 bg-green-500/10 rounded-lg border border-green-400/20">
+                        <h4 className="text-green-200 font-medium mb-2">✅ เฉลย:</h4>
+                        {solution.answer_text && (
+                          <p className="text-white/80 mb-3">
+                            {solution.answer_text}
+                          </p>
+                        )}
+                        {solution.answer_img && (
+                          <div className="mb-3">
+                            <img
+                              src={getImageUrl(solution.answer_img)}
+                              alt="Answer"
+                              className="max-w-xs h-auto rounded-lg border border-white/30"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex space-x-2 ml-4">
                       <button
                         onClick={() => handleEdit(solution)}
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 rounded-xl text-sm hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-md"
+                        className="bg-gradient-to-r from-green-500 to-blue-600 text-white px-3 py-1 rounded-xl text-sm hover:from-green-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md"
                       >
                         แก้ไข
                       </button>
@@ -407,7 +478,7 @@ function AdminManageSolutions() {
                   className={`px-3 py-2 rounded-xl font-medium text-sm transition-all duration-200 shadow ${
                     currentPage === 1
                       ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
+                      : 'bg-gradient-to-r from-green-500 to-blue-600 text-white hover:from-green-600 hover:to-blue-700'
                   }`}
                 >
                   ← ก่อนหน้า
@@ -446,7 +517,7 @@ function AdminManageSolutions() {
                   className={`px-3 py-2 rounded-xl font-medium text-sm transition-all duration-200 shadow ${
                     currentPage === totalPages
                       ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
+                      : 'bg-gradient-to-r from-green-500 to-blue-600 text-white hover:from-green-600 hover:to-blue-700'
                   }`}
                 >
                   ถัดไป →
@@ -475,8 +546,8 @@ function AdminManageSolutions() {
       </div>
 
       {/* Decorative Elements */}
-      <div className="absolute top-10 left-10 w-20 h-20 bg-blue-400/20 rounded-full blur-xl"></div>
-      <div className="absolute bottom-10 right-10 w-32 h-32 bg-purple-400/20 rounded-full blur-xl"></div>
+      <div className="absolute top-10 left-10 w-20 h-20 bg-green-400/20 rounded-full blur-xl"></div>
+      <div className="absolute bottom-10 right-10 w-32 h-32 bg-blue-400/20 rounded-full blur-xl"></div>
       <div className="absolute top-1/2 right-0 w-24 h-24 bg-indigo-400/20 rounded-full blur-xl"></div>
     </div>
   );

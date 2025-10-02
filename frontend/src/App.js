@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import AdminDashboard from './pages/AdminDashboard';
 import AdminAddQuestion from './pages/AdminAddQuestion';
 import AdminAddSolution from './pages/AdminAddSolution';
 import AdminManageQuestions from './pages/AdminManageQuestions';
@@ -16,6 +17,11 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/admin/add-question" element={
               <ProtectedRoute>
                 <AdminAddQuestion />

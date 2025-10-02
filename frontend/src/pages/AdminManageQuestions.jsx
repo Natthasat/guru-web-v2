@@ -213,12 +213,6 @@ function AdminManageQuestions() {
             </div>
             <h1 className="text-2xl font-bold text-white">จัดการโจทย์ทั้งหมด</h1>
           </div>
-          <button
-            onClick={() => window.history.back()}
-            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg border border-white/30 transition-all duration-200 backdrop-blur-sm"
-          >
-            ← กลับ
-          </button>
         </div>
       </div>
 
@@ -226,6 +220,17 @@ function AdminManageQuestions() {
       <div className="flex items-center justify-center py-8 px-4">
         <div className="max-w-4xl w-full">
           <div className="p-8">
+            {/* Back Button - Top Left */}
+            <div className="mb-6">
+              <button
+                onClick={() => window.history.back()}
+                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg border border-white/30 transition-all duration-200 backdrop-blur-sm flex items-center space-x-2"
+              >
+                <span>←</span>
+                <span>กลับ</span>
+              </button>
+            </div>
+            
             {/* Search Bar */}
             <div className="mb-6">
               <input
@@ -239,13 +244,13 @@ function AdminManageQuestions() {
 
             {/* Edit Form Modal */}
             {editingQuestion && (
-              <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-50">
+              <div className="fixed inset-0 bg-white bg-opacity-80 flex items-start justify-center z-50">
                       <div className="max-w-2xl w-full flex flex-col mt-2">
-                        <div className="bg-black rounded-2xl p-8">
-                          <h3 className="text-xl font-bold text-white mb-4">แก้ไขโจทย์</h3>
+                        <div className="bg-white rounded-2xl p-8 shadow-2xl">
+                          <h3 className="text-xl font-bold text-black mb-4">แก้ไขโจทย์</h3>
                           <form onSubmit={handleUpdate} className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">
+                      <label className="block text-sm font-medium text-black mb-2">
                         📚 รหัสหนังสือ (Book ID) *
                       </label>
                       <input
@@ -254,14 +259,14 @@ function AdminManageQuestions() {
                         value={formData.book_id}
                         onChange={handleInputChange}
                         required
-                        className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                        className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
                         placeholder="เช่น MATH-101"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-white/90 mb-2">
+                        <label className="block text-sm font-medium text-black mb-2">
                           📄 หน้า (Page) *
                         </label>
                         <input
@@ -271,13 +276,13 @@ function AdminManageQuestions() {
                           onChange={handleInputChange}
                           required
                           min="1"
-                          className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                          className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
                           placeholder="เช่น 25"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-white/90 mb-2">
+                        <label className="block text-sm font-medium text-black mb-2">
                           🔢 ข้อที่ (Question No.) *
                         </label>
                         <input
@@ -287,14 +292,14 @@ function AdminManageQuestions() {
                           onChange={handleInputChange}
                           required
                           min="1"
-                          className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                          className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
                           placeholder="เช่น 1"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">
+                      <label className="block text-sm font-medium text-black mb-2">
                         ✏️ ข้อความโจทย์ (Question Text)
                       </label>
                       <textarea
@@ -302,13 +307,13 @@ function AdminManageQuestions() {
                         value={formData.question_text}
                         onChange={handleInputChange}
                         rows="4"
-                        className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200 resize-none"
+                        className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 resize-none"
                         placeholder="พิมพ์ข้อความโจทย์ที่นี่ (ถ้ามี)"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">
+                      <label className="block text-sm font-medium text-black mb-2">
                         🖼️ รูปภาพโจทย์ (Question Image)
                       </label>
                       <div className="space-y-3">
@@ -316,19 +321,19 @@ function AdminManageQuestions() {
                           type="file"
                           onChange={handleImageChange}
                           accept="image/jpeg,image/jpg,image/png,image/gif"
-                          className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                          className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
                         />
                         {imagePreview && (
-                          <div className="relative bg-white/5 rounded-xl p-4 border border-white/20">
+                          <div className="relative bg-gray-100 rounded-xl p-4 border border-gray-300">
                             <img
                               src={imagePreview}
                               alt="Preview"
-                              className="max-w-full h-auto max-h-64 mx-auto rounded-lg border border-white/30"
+                              className="max-w-full h-auto max-h-64 mx-auto rounded-lg border border-gray-300"
                             />
                             <button
                               type="button"
                               onClick={removeImage}
-                              className="absolute top-6 right-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm"
+                              className="absolute top-6 right-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full p-2 transition-all duration-200"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -336,7 +341,7 @@ function AdminManageQuestions() {
                             </button>
                           </div>
                         )}
-                        <p className="text-sm text-white/60">
+                        <p className="text-sm text-gray-500">
                           รองรับไฟล์ JPG, PNG, GIF ขนาดไม่เกิน 5MB
                         </p>
                       </div>
@@ -353,7 +358,7 @@ function AdminManageQuestions() {
                       <button
                         type="button"
                         onClick={handleCancelEdit}
-                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gray-500/80 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                        className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-black bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
                       >
                         ยกเลิก
                       </button>
