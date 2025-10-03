@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAddQuestion from './pages/AdminAddQuestion';
 import AdminAddSolution from './pages/AdminAddSolution';
+import AdminAddSolutionNew from './pages/AdminAddSolutionNew';
+import AdminLinkQuestionSolution from './pages/AdminLinkQuestionSolution';
 import AdminManageQuestions from './pages/AdminManageQuestions';
 import AdminManageSolutions from './pages/AdminManageSolutions';
 import Login from './pages/Login';
@@ -30,6 +32,16 @@ function App() {
             <Route path="/admin/add-solution" element={
               <ProtectedRoute>
                 <AdminAddSolution />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/add-solution-new" element={
+              <ProtectedRoute>
+                <AdminAddSolutionNew />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/link-question-solution" element={
+              <ProtectedRoute>
+                <AdminLinkQuestionSolution />
               </ProtectedRoute>
             } />
             <Route path="/admin/manage-questions" element={
