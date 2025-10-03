@@ -105,7 +105,9 @@ def migrate():
         
         # 4. ลบตารางเก่าและเปลี่ยนชื่อ
         print("🗑️ ลบตารางเก่า...")
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         conn.execute(text("DROP TABLE IF EXISTS solutions"))
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
         conn.commit()
         
         print("✨ เปลี่ยนชื่อตาราง...")
