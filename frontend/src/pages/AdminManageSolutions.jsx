@@ -54,16 +54,14 @@ function AdminManageSolutions() {
 
   const handleEdit = (solution) => {
     console.log('Editing solution:', solution); // Debug log
+    console.log('Solution images:', solution.images); // Debug images
     setEditingSolution(solution);
     setFormData({
       answer_text: solution.answer_text || '',
       answer_img: null
     });
-    if (solution.answer_img) {
-      setImagePreview(getImageUrl(solution.answer_img));
-    } else {
-      setImagePreview(null);
-    }
+    // ล้าง imagePreview เมื่อเปิดฟอร์มแก้ไข (จะแสดงรูปเดิมจาก editingSolution.images แทน)
+    setImagePreview(null);
   };
 
   const handleCancelEdit = () => {
@@ -287,15 +285,21 @@ function AdminManageSolutions() {
               <div className="fixed inset-0 bg-white bg-opacity-80 flex items-start justify-center z-50">
                       <div className="max-w-2xl w-full flex flex-col mt-2">
                         <div className="bg-white rounded-2xl p-8 shadow-2xl">
-                          <h3 className="text-xl font-bold text-black mb-2">แก้ไขเฉลย</h3>
-                          {editingSolution.question && (
+                          <h3 className="text-xl font-bold text-black mb-2">แก้ไขเฉลย ID: {editingSolution.id}</h3>
+                          
+                          {/* แสดงโจทย์ที่เชื่อมโยง */}
+                          {editingSolution.linked_questions && editingSolution.linked_questions.length > 0 && (
                             <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                              <p className="text-sm text-blue-800">
-                                <strong>โจทย์:</strong> {editingSolution.question.book_id} หน้า {editingSolution.question.page} ข้อ {editingSolution.question.question_no}
+                              <p className="text-sm font-semibold text-blue-900 mb-2">
+                                📚 โจทย์ที่เชื่อมโยง ({editingSolution.linked_questions.length} โจทย์):
                               </p>
-                              <p className="text-xs text-blue-600 mt-1">
-                                ID: {editingSolution.id} | Question ID: {editingSolution.question_id}
-                              </p>
+                              <div className="space-y-1">
+                                {editingSolution.linked_questions.map((q, idx) => (
+                                  <p key={idx} className="text-xs text-blue-700">
+                                    • {q.book_id} หน้า {q.page} ข้อ {q.question_no}
+                                  </p>
+                                ))}
+                              </div>
                             </div>
                           )}
                           <form onSubmit={handleUpdate} className="space-y-6">
@@ -318,14 +322,51 @@ function AdminManageSolutions() {
                         🖼️ รูปภาพคำตอบ (Answer Image)
                       </label>
                       <div className="space-y-3">
+                        {/* แสดงรูปภาพปัจจุบัน */}
+                        {editingSolution.images && editingSolution.images.length > 0 && !imagePreview && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <p className="text-sm font-medium text-blue-800 mb-3">
+                              📸 รูปภาพปัจจุบัน ({editingSolution.images.length} รูป):
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              {editingSolution.images
+                                .sort((a, b) => a.image_order - b.image_order)
+                                .map((img) => (
+                                  <div key={img.id} className="relative">
+                                    <img
+                                      src={getImageUrl(img.image_path)}
+                                      alt={`Solution ${img.image_order + 1}`}
+                                      className="w-full h-auto rounded-lg border-2 border-blue-300"
+                                      onError={(e) => {
+                                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
+                                      }}
+                                    />
+                                    <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
+                                      {img.image_order + 1}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2">
+                              💡 เลือกไฟล์ใหม่ด้านล่างเพื่ออัปโหลดรูปเพิ่มเติม
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* ช่องเลือกไฟล์ใหม่ */}
                         <input
                           type="file"
                           onChange={handleImageChange}
                           accept="image/jpeg,image/jpg,image/png,image/gif"
                           className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200"
                         />
+                        
+                        {/* แสดง Preview รูปใหม่ที่เลือก */}
                         {imagePreview && (
                           <div className="relative bg-gray-100 rounded-xl p-4 border border-gray-300">
+                            <p className="text-sm font-medium text-green-700 mb-2">
+                              ✨ รูปใหม่ที่จะอัปโหลด:
+                            </p>
                             <img
                               src={imagePreview}
                               alt="Preview"

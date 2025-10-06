@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -10,6 +11,39 @@ import uuid
 from pathlib import Path
 
 router = APIRouter()
+
+# ==================== Helper Functions ====================
+
+def find_question_by_any_book_id(
+    db: Session, 
+    book_id: str, 
+    page: int, 
+    question_no: int
+) -> Optional[Question]:
+    """
+    ค้นหาโจทย์โดยรองรับการค้นหาจากรหัสหนังสือทั้งแบบใหม่ (book_id) และแบบเก่า (old_book_id)
+    
+    Args:
+        db (Session): SQLAlchemy database session
+        book_id (str): รหัสหนังสือที่ต้องการค้นหา (สามารถเป็นรหัสใหม่หรือเก่าก็ได้)
+        page (int): หน้าหนังสือ
+        question_no (int): ข้อที่
+    
+    Returns:
+        Optional[Question]: Question object ถ้าพบ, None ถ้าไม่พบ
+    
+    Example:
+        >>> question = find_question_by_any_book_id(db, "IPL5203-1051", 5, 2)
+        >>> question = find_question_by_any_book_id(db, "1710-0141", 5, 2)  # ใช้รหัสเก่าก็ได้
+    """
+    return db.query(Question).filter(
+        or_(
+            Question.book_id == book_id,
+            Question.old_book_id == book_id
+        ),
+        Question.page == page,
+        Question.question_no == question_no
+    ).first()
 
 # Pydantic schemas
 class SolutionImageResponse(BaseModel):
@@ -397,13 +431,10 @@ async def get_question_with_solutions(
 ):
     """
     แสดงโจทย์ + เฉลยทั้งหมด (JOIN question_solutions + solutions + solution_images)
+    รองรับการค้นหาด้วยรหัสหนังสือแบบใหม่ (book_id) หรือแบบเก่า (old_book_id)
     """
-    # หาโจทย์
-    question = db.query(Question).filter(
-        Question.book_id == book_id,
-        Question.page == page,
-        Question.question_no == question_no
-    ).first()
+    # หาโจทย์โดยใช้ reusable function
+    question = find_question_by_any_book_id(db, book_id, page, question_no)
     
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -438,6 +469,7 @@ async def get_question_with_solutions(
         "question": {
             "id": question.id,
             "book_id": question.book_id,
+            "old_book_id": question.old_book_id,
             "page": question.page,
             "question_no": question.question_no,
             "question_text": question.question_text,

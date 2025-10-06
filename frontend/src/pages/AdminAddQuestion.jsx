@@ -8,6 +8,7 @@ function AdminAddQuestion() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     book_id: '',
+    old_book_id: '',
     page: '',
     question_no: '',
     question_text: '',
@@ -90,6 +91,12 @@ function AdminAddQuestion() {
       // สร้าง FormData สำหรับอัปโหลดไฟล์
       const submitData = new FormData();
       submitData.append('book_id', formData.book_id);
+      if (formData.old_book_id && formData.old_book_id.trim() !== '') {
+        submitData.append('old_book_id', formData.old_book_id.trim());
+        console.log('📘 Sending old_book_id:', formData.old_book_id.trim());
+      } else {
+        console.log('⚠️ old_book_id is empty, not sending to backend');
+      }
       submitData.append('page', parseInt(formData.page));
       submitData.append('question_no', parseInt(formData.question_no));
       submitData.append('question_text', formData.question_text || '');
@@ -107,9 +114,10 @@ function AdminAddQuestion() {
       console.log('✅ เพิ่มโจทย์สำเร็จ:', response.data);
       setMessage('✅ เพิ่มโจทย์สำเร็จแล้ว!');
       
-      // รีเซ็ตฟอร์ม (เว้น book_id ไว้ให้ใช้ต่อ)
+      // รีเซ็ตฟอร์ม (เว้น book_id และ old_book_id ไว้ให้ใช้ต่อ)
       setFormData(prev => ({
         book_id: prev.book_id,
+        old_book_id: prev.old_book_id,
         page: '',
         question_no: '',
         question_text: '',
@@ -169,7 +177,7 @@ function AdminAddQuestion() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  📚 รหัสหนังสือ (Book ID) *
+                  📚 รหัสหนังสือแบบใหม่ (Book ID) *
                   {localStorage.getItem('lastBookId') && (
                     <span className="text-xs text-white/60 ml-2">
                       (ล่าสุด: {localStorage.getItem('lastBookId')})
@@ -183,7 +191,22 @@ function AdminAddQuestion() {
                   onChange={handleInputChange}
                   required
                   className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
-                  placeholder={localStorage.getItem('lastBookId') ? `ล่าสุด: ${localStorage.getItem('lastBookId')}` : "เช่น MATH-101"}
+                  placeholder="เช่น IPL5203-1051"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  📖 รหัสหนังสือแบบเก่า (Old Book ID) 
+                  <span className="text-xs text-white/60 ml-2">(ถ้ามี)</span>
+                </label>
+                <input
+                  type="text"
+                  name="old_book_id"
+                  value={formData.old_book_id}
+                  onChange={handleInputChange}
+                  className="block w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
+                  placeholder="เช่น 1710-0141"
                 />
               </div>
 

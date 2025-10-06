@@ -15,7 +15,8 @@ class Question(Base):
     __tablename__ = "questions"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    book_id = Column(String(50), nullable=False)
+    book_id = Column(String(50), nullable=False)  # รหัสหนังสือแบบใหม่ (เช่น IPL5203-1051)
+    old_book_id = Column(String(50), nullable=True)  # รหัสหนังสือแบบเก่า (เช่น 1710-0141) - optional
     page = Column(Integer, nullable=False)
     question_no = Column(Integer, nullable=False)
     question_text = Column(Text, nullable=True)

@@ -13,7 +13,8 @@ router = APIRouter()
 
 # Pydantic schemas
 class QuestionCreate(BaseModel):
-    book_id: str
+    book_id: str  # รหัสหนังสือแบบใหม่
+    old_book_id: Optional[str] = None  # รหัสหนังสือแบบเก่า (optional)
     page: int
     question_no: int
     question_text: Optional[str] = None
@@ -28,7 +29,8 @@ class SolutionBasic(BaseModel):
 
 class QuestionResponse(BaseModel):
     id: int
-    book_id: str
+    book_id: str  # รหัสหนังสือแบบใหม่
+    old_book_id: Optional[str] = None  # รหัสหนังสือแบบเก่า
     page: int
     question_no: int
     question_text: Optional[str] = None
@@ -42,13 +44,20 @@ class QuestionResponse(BaseModel):
 @router.post("/questions", response_model=QuestionResponse)
 async def create_question(
     book_id: str = Form(...),
+    old_book_id: Optional[str] = Form(None),
     page: int = Form(...),
     question_no: int = Form(...),
     question_text: str = Form(""),
     question_img: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """เพิ่มโจทย์ใหม่ (รองรับการอัปโหลดรูปภาพ)"""
+    """เพิ่มโจทย์ใหม่ (รองรับการอัปโหลดรูปภาพ + รหัสหนังสือแบบเก่า)"""
+    
+    # Debug: แสดงข้อมูลที่ได้รับ
+    print(f"📥 Received data:")
+    print(f"   book_id: {book_id}")
+    print(f"   old_book_id: {old_book_id} (type: {type(old_book_id)})")
+    print(f"   page: {page}, question_no: {question_no}")
     
     # จัดการการอัปโหลดรูปภาพ
     image_filename = None
@@ -85,14 +94,17 @@ async def create_question(
     # สร้างโจทย์ใหม่
     db_question = Question(
         book_id=book_id,
+        old_book_id=old_book_id if old_book_id else None,
         page=page,
         question_no=question_no,
         question_text=question_text if question_text else None,
         question_img=image_filename
     )
+    print(f"💾 Saving to database: old_book_id = {db_question.old_book_id}")
     db.add(db_question)
     db.commit()
     db.refresh(db_question)
+    print(f"✅ Saved successfully! Question ID: {db_question.id}, old_book_id in DB: {db_question.old_book_id}")
     return db_question
 
 @router.get("/questions", response_model=List[QuestionResponse])
@@ -106,13 +118,14 @@ async def get_all_questions(db: Session = Depends(get_db)):
 async def update_question(
     question_id: int,
     book_id: str = Form(...),
+    old_book_id: Optional[str] = Form(None),
     page: int = Form(...),
     question_no: int = Form(...),
     question_text: str = Form(""),
     question_img: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """แก้ไขโจทย์"""
+    """แก้ไขโจทย์ (รองรับการอัปเดตรหัสหนังสือแบบเก่า)"""
     
     # ตรวจสอบว่าโจทย์มีอยู่จริง
     db_question = db.query(Question).filter(Question.id == question_id).first()
@@ -159,6 +172,7 @@ async def update_question(
     
     # อัปเดตข้อมูลโจทย์
     db_question.book_id = book_id
+    db_question.old_book_id = old_book_id if old_book_id else None
     db_question.page = page
     db_question.question_no = question_no
     db_question.question_text = question_text if question_text else None

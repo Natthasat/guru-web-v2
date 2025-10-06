@@ -14,6 +14,7 @@ function AdminManageQuestions() {
   const [itemsPerPage] = useState(10);
   const [formData, setFormData] = useState({
     book_id: '',
+    old_book_id: '',
     page: '',
     question_no: '',
     question_text: '',
@@ -73,6 +74,7 @@ function AdminManageQuestions() {
     setEditingQuestion(question);
     setFormData({
       book_id: question.book_id,
+      old_book_id: question.old_book_id || '',
       page: question.page.toString(),
       question_no: question.question_no.toString(),
       question_text: question.question_text || '',
@@ -87,6 +89,7 @@ function AdminManageQuestions() {
     setEditingQuestion(null);
     setFormData({
       book_id: '',
+      old_book_id: '',
       page: '',
       question_no: '',
       question_text: '',
@@ -152,6 +155,12 @@ function AdminManageQuestions() {
       // สร้าง FormData สำหรับอัปโหลดไฟล์
       const submitData = new FormData();
       submitData.append('book_id', formData.book_id);
+      if (formData.old_book_id && formData.old_book_id.trim() !== '') {
+        submitData.append('old_book_id', formData.old_book_id.trim());
+        console.log('📘 Updating old_book_id:', formData.old_book_id.trim());
+      } else {
+        console.log('⚠️ old_book_id is empty, not sending to backend');
+      }
       submitData.append('page', parseInt(formData.page));
       submitData.append('question_no', parseInt(formData.question_no));
       submitData.append('question_text', formData.question_text || '');
@@ -183,6 +192,7 @@ function AdminManageQuestions() {
 
   const filteredQuestions = questions.filter(question =>
     question.book_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    question.old_book_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     question.question_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     question.page.toString().includes(searchTerm) ||
     question.question_no.toString().includes(searchTerm)
@@ -265,7 +275,7 @@ function AdminManageQuestions() {
                           <form onSubmit={handleUpdate} className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-black mb-2">
-                        📚 รหัสหนังสือ (Book ID) *
+                        📚 รหัสหนังสือแบบใหม่ (Book ID) *
                       </label>
                       <input
                         type="text"
@@ -274,7 +284,22 @@ function AdminManageQuestions() {
                         onChange={handleInputChange}
                         required
                         className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
-                        placeholder="เช่น MATH-101"
+                        placeholder="เช่น IPL5203-1051"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-black mb-2">
+                        📖 รหัสหนังสือแบบเก่า (Old Book ID)
+                        <span className="text-xs text-gray-500 ml-2">(ถ้ามี)</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="old_book_id"
+                        value={formData.old_book_id}
+                        onChange={handleInputChange}
+                        className="block w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200"
+                        placeholder="เช่น 1710-0141"
                       />
                     </div>
 
@@ -411,14 +436,20 @@ function AdminManageQuestions() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-4 mb-2">
                         <h3 className="text-lg font-semibold text-white">
-                          {question.book_id} หน้า {question.page} ข้อ {question.question_no}
+                          {question.book_id}
+                          {question.old_book_id && (
+                            <span className="text-sm text-amber-300/90 ml-2">
+                              (เก่า: {question.old_book_id})
+                            </span>
+                          )}
+                          {' '}หน้า {question.page} ข้อ {question.question_no}
                         </h3>
                         <span className="text-sm text-white/60">
                           ID: {question.id}
                         </span>
                         {question.created_at && (
                           <span className="text-xs text-white/40">
-                            📅 {new Date(question.created_at).toLocaleString('th-TH')}
+                            � {new Date(question.created_at).toLocaleString('th-TH')}
                           </span>
                         )}
                       </div>
