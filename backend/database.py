@@ -2,14 +2,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+import logging
+from config import settings
 
-# Database URL - MySQL connection to guru_DB
-# แก้ไข username และ password ให้ตรงกับ MySQL server ของคุณ
-# ตัวอย่าง: "mysql+pymysql://username:password@localhost:3306/guru_DB"
-DATABASE_URL = "mysql+pymysql://root:@localhost:3306/guru_DB"
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# สำหรับกรณีที่ยังไม่มี MySQL ให้ใช้ SQLite ชั่วคราว
-# DATABASE_URL = "sqlite:///./guru_web.db"
+# Get Database URL from environment variables
+DATABASE_URL = settings.DATABASE_URL
 
 # Create engine with better error handling
 try:
@@ -18,13 +19,13 @@ try:
     with engine.connect() as conn:
         result = conn.execute(text("SELECT 1"))
         result.fetchone()
-    print("✅ เชื่อมต่อ MySQL guru_DB สำเร็จ")
+    logger.info("✅ เชื่อมต่อฐานข้อมูลสำเร็จ")
 except Exception as e:
-    print(f"❌ ไม่สามารถเชื่อมต่อ MySQL: {e}")
-    print("🔄 กำลังใช้ SQLite แทน...")
+    logger.error(f"❌ ไม่สามารถเชื่อมต่อฐานข้อมูล: {e}")
+    logger.warning("🔄 กำลังใช้ SQLite แทน...")
     DATABASE_URL = "sqlite:///./guru_web.db"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-    print("✅ ใช้ SQLite สำหรับการพัฒนา")
+    logger.info("✅ ใช้ SQLite สำหรับการพัฒนา")
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
