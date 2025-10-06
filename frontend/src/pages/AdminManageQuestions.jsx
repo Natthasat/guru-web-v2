@@ -46,12 +46,26 @@ function AdminManageQuestions() {
   const handleDelete = async (questionId) => {
     if (!window.confirm('คุณต้องการลบโจทย์นี้หรือไม่?')) return;
 
+    setLoading(true);
+    setMessage('');
+    
     try {
-      await axios.delete(`${API_BASE_URL}/questions/${questionId}`);
-      setMessage('ลบโจทย์สำเร็จแล้ว');
+      console.log('Deleting question ID:', questionId);
+      const response = await axios.delete(`${API_BASE_URL}/questions/${questionId}`);
+      console.log('Delete response:', response);
+      setMessage('✅ ลบโจทย์สำเร็จแล้ว');
       fetchQuestions();
     } catch (error) {
-      setMessage('เกิดข้อผิดพลาดในการลบโจทย์');
+      console.error('Delete error:', error);
+      if (error.response) {
+        setMessage(`❌ เกิดข้อผิดพลาด: ${error.response.data.detail || error.response.statusText}`);
+      } else if (error.request) {
+        setMessage('❌ ไม่สามารถเชื่อมต่อกับ Server ได้');
+      } else {
+        setMessage('❌ เกิดข้อผิดพลาดในการลบโจทย์');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

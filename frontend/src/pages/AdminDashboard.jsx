@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 const IMAGE_BASE_URL = 'http://localhost:8000';
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const [searchForm, setSearchForm] = useState({
     book_id: '',
     page: '',
@@ -70,7 +72,8 @@ function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    window.location.href = '/';
+    localStorage.removeItem('username');
+    navigate('/');
   };
 
   return (
@@ -102,35 +105,6 @@ function AdminDashboard() {
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-white mb-4">ระบบจัดการโจทย์และเฉลย</h2>
             <p className="text-white/80 text-lg">เลือกเมนูที่ต้องการจัดการ</p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Questions Stats */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-2xl">📄</span>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">1</h3>
-                  <p className="text-white/70">โจทย์ทั้งหมด</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Solutions Stats */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-2xl">✅</span>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">1</h3>
-                  <p className="text-white/70">เฉลยทั้งหมด</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Search Form Section */}
@@ -247,34 +221,56 @@ function AdminDashboard() {
                   )}
                 </div>
 
-                {/* Solution */}
-                {searchResult.solution ? (
-                  <div className="bg-green-500/10 rounded-xl p-6 border border-green-400/30">
-                    <h5 className="text-lg font-semibold text-green-200 mb-4 flex items-center">
+                {/* Solutions (Many-to-Many) */}
+                {searchResult.solutions && searchResult.solutions.length > 0 ? (
+                  <div className="space-y-4">
+                    <h5 className="text-lg font-semibold text-green-200 flex items-center">
                       <span className="mr-2">✅</span>
-                      เฉลย
+                      เฉลย ({searchResult.solutions.length} ชุด)
                     </h5>
                     
-                    {searchResult.solution.answer_text && (
-                      <div className="mb-4">
-                        <p className="text-white/90 text-base leading-relaxed">
-                          {searchResult.solution.answer_text}
-                        </p>
+                    {searchResult.solutions.map((solution, idx) => (
+                      <div key={solution.id} className="bg-green-500/10 rounded-xl p-6 border border-green-400/30">
+                        <div className="mb-3">
+                          <span className="bg-green-600/30 text-green-200 px-3 py-1 rounded-full text-sm font-medium">
+                            เฉลยที่ {idx + 1}
+                          </span>
+                          {solution.title && (
+                            <span className="ml-2 text-white/70 text-sm">
+                              {solution.title}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {solution.answer_text && (
+                          <div className="mb-4">
+                            <p className="text-white/90 text-base leading-relaxed whitespace-pre-wrap">
+                              {solution.answer_text}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {solution.images && solution.images.length > 0 && (
+                          <div className="grid grid-cols-2 gap-4">
+                            {solution.images.map((img) => (
+                              <div key={img.id} className="relative">
+                                <img
+                                  src={getImageUrl(img.image_path)}
+                                  alt={`Solution ${idx + 1} - Image ${img.image_order + 1}`}
+                                  className="w-full h-auto rounded-lg border border-white/30 shadow-lg"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                                <span className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                                  {img.image_order + 1}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    
-                    {searchResult.solution.answer_img && (
-                      <div className="mb-4">
-                        <img
-                          src={getImageUrl(searchResult.solution.answer_img)}
-                          alt="Answer"
-                          className="max-w-full h-auto rounded-lg border border-white/30 shadow-lg"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
+                    ))}
                   </div>
                 ) : (
                   <div className="bg-yellow-500/10 rounded-xl p-6 border border-yellow-400/30 text-center">
@@ -332,13 +328,27 @@ function AdminDashboard() {
                   <span className="text-white text-3xl">✅</span>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">เพิ่มเฉลย</h3>
-                <p className="text-white/70">เพิ่มเฉลยให้กับโจทย์ที่มีอยู่</p>
+                <p className="text-white/70">สร้างเฉลยใหม่ (รองรับหลายรูป)</p>
               </div>
             </div>
           </div>
 
           {/* Management Cards Row 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Link Question-Solution */}
+            <div 
+              onClick={() => window.location.href = '/admin/link-question-solution'}
+              className="bg-gradient-to-br from-orange-500/20 to-red-500/20 backdrop-blur-sm rounded-2xl p-8 border-2 border-orange-400/40 hover:border-orange-400/60 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02] shadow-lg"
+            >
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl">
+                  <span className="text-white text-3xl">🔗</span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">⚡ เชื่อมโยงโจทย์-เฉลย</h3>
+                <p className="text-orange-200 font-medium">เชื่อมโยงโจทย์กับเฉลย (สำคัญ!)</p>
+              </div>
+            </div>
+
             {/* Manage Questions */}
             <div 
               onClick={() => window.location.href = '/admin/manage-questions'}

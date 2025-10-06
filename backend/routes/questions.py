@@ -19,6 +19,13 @@ class QuestionCreate(BaseModel):
     question_text: Optional[str] = None
     question_img: Optional[str] = None
 
+class SolutionBasic(BaseModel):
+    id: int
+    title: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class QuestionResponse(BaseModel):
     id: int
     book_id: str
@@ -27,6 +34,7 @@ class QuestionResponse(BaseModel):
     question_text: Optional[str] = None
     question_img: Optional[str] = None
     created_at: datetime
+    solutions: List[SolutionBasic] = []
     
     class Config:
         from_attributes = True
@@ -89,8 +97,9 @@ async def create_question(
 
 @router.get("/questions", response_model=List[QuestionResponse])
 async def get_all_questions(db: Session = Depends(get_db)):
-    """ดูโจทย์ทั้งหมด"""
-    questions = db.query(Question).order_by(Question.id.desc()).all()
+    """ดูโจทย์ทั้งหมด พร้อมข้อมูลเฉลยที่เชื่อมโยง"""
+    from sqlalchemy.orm import joinedload
+    questions = db.query(Question).options(joinedload(Question.solutions)).order_by(Question.id.desc()).all()
     return questions
 
 @router.put("/questions/{question_id}", response_model=QuestionResponse)
@@ -161,30 +170,27 @@ async def update_question(
 
 @router.delete("/questions/{question_id}")
 async def delete_question(question_id: int, db: Session = Depends(get_db)):
-    """ลบโจทย์"""
+    """ลบโจทย์ (รองรับ Many-to-Many architecture)"""
     
     # ตรวจสอบว่าโจทย์มีอยู่จริง
     db_question = db.query(Question).filter(Question.id == question_id).first()
     if not db_question:
         raise HTTPException(status_code=404, detail="ไม่พบโจทย์ที่ระบุ")
     
-    # ลบไฟล์รูปภาพ (ถ้ามี)
+    # ลบไฟล์รูปภาพของโจทย์ (ถ้ามี)
     if db_question.question_img:
         file_path = Path("backend") / db_question.question_img
         if file_path.exists():
-            file_path.unlink()
+            try:
+                file_path.unlink()
+            except Exception as e:
+                print(f"Warning: Cannot delete question image file: {e}")
     
-    # ลบเฉลยที่เกี่ยวข้องกับโจทย์นี้
-    from models import Solution
-    solutions = db.query(Solution).filter(Solution.question_id == question_id).all()
-    for solution in solutions:
-        if solution.answer_img:
-            solution_file_path = Path("backend") / solution.answer_img
-            if solution_file_path.exists():
-                solution_file_path.unlink()
-        db.delete(solution)
+    # ลบความสัมพันธ์ใน question_solutions (CASCADE จะทำให้ลบอัตโนมัติ)
+    # ไม่ต้องลบ Solution เพราะอาจใช้กับโจทย์อื่นอยู่
+    # CASCADE DELETE ใน Foreign Key จะจัดการให้
     
-    # ลบโจทย์
+    # ลบโจทย์ (CASCADE จะลบ question_solutions ที่เกี่ยวข้องโดยอัตโนมัติ)
     db.delete(db_question)
     db.commit()
     

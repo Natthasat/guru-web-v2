@@ -24,6 +24,9 @@ class Question(Base):
     
     # Many-to-Many relationship with solutions through question_solutions
     question_solutions = relationship("QuestionSolution", back_populates="question", cascade="all, delete-orphan")
+    
+    # Direct access to solutions (for easier querying)
+    solutions = relationship("Solution", secondary="question_solutions", viewonly=True)
 
 class Solution(Base):
     """
@@ -43,6 +46,9 @@ class Solution(Base):
     
     # Many-to-Many relationship with questions through question_solutions
     question_solutions = relationship("QuestionSolution", back_populates="solution", cascade="all, delete-orphan")
+    
+    # Direct access to questions (for easier querying)
+    questions = relationship("Question", secondary="question_solutions", viewonly=True)
 
 class SolutionImage(Base):
     """

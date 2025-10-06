@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
 function AdminAddQuestion() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     book_id: '',
     page: '',
@@ -102,14 +104,17 @@ function AdminAddQuestion() {
         },
       });
 
-      setMessage('เพิ่มโจทย์สำเร็จแล้ว!');
-      setFormData({
-        book_id: '',
+      console.log('✅ เพิ่มโจทย์สำเร็จ:', response.data);
+      setMessage('✅ เพิ่มโจทย์สำเร็จแล้ว!');
+      
+      // รีเซ็ตฟอร์ม (เว้น book_id ไว้ให้ใช้ต่อ)
+      setFormData(prev => ({
+        book_id: prev.book_id,
         page: '',
         question_no: '',
         question_text: '',
         question_img: null
-      });
+      }));
       setImagePreview(null);
     } catch (error) {
       console.error('Error submitting question:', error);

@@ -38,7 +38,7 @@ class QuestionSolutionResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.post("/solutions", response_model=SolutionResponse)
+@router.post("/solutions")
 async def create_solution(
     title: str = Form(None),
     answer_text: str = Form(""),
@@ -56,7 +56,13 @@ async def create_solution(
     db.commit()
     db.refresh(new_solution)
     
-    return new_solution
+    return {
+        "id": new_solution.id,
+        "title": new_solution.title,
+        "answer_text": new_solution.answer_text,
+        "created_at": new_solution.created_at.isoformat() if new_solution.created_at else None,
+        "images": []
+    }
 
 @router.post("/solutions/{solution_id}/images")
 async def upload_solution_images(
@@ -121,15 +127,53 @@ async def upload_solution_images(
         "images": uploaded_images
     }
 
-@router.get("/solutions", response_model=List[SolutionResponse])
+@router.get("/solutions")
 async def get_all_solutions(db: Session = Depends(get_db)):
     """
-    ดูเฉลยทั้งหมด (พร้อมรูปภาพ)
+    ดูเฉลยทั้งหมด (พร้อมรูปภาพและโจทย์ที่เชื่อมโยง)
     """
     solutions = db.query(Solution).options(joinedload(Solution.images)).all()
-    return solutions
+    
+    # แปลงเป็น dict พร้อมข้อมูลโจทย์ที่เชื่อมโยง
+    result = []
+    for solution in solutions:
+        # ดึงโจทย์ทั้งหมดที่เชื่อมกับเฉลยนี้
+        question_links = db.query(QuestionSolution).filter(
+            QuestionSolution.solution_id == solution.id
+        ).all()
+        
+        linked_questions = []
+        for link in question_links:
+            question = db.query(Question).filter(Question.id == link.question_id).first()
+            if question:
+                linked_questions.append({
+                    "id": question.id,
+                    "book_id": question.book_id,
+                    "page": question.page,
+                    "question_no": question.question_no,
+                    "question_text": question.question_text,
+                    "question_img": question.question_img
+                })
+        
+        result.append({
+            "id": solution.id,
+            "title": solution.title,
+            "answer_text": solution.answer_text,
+            "created_at": solution.created_at.isoformat() if solution.created_at else None,
+            "linked_questions": linked_questions,  # เพิ่มรายการโจทย์ที่เชื่อมโยง
+            "images": [
+                {
+                    "id": img.id,
+                    "image_path": img.image_path,
+                    "image_order": img.image_order
+                }
+                for img in solution.images
+            ]
+        })
+    
+    return result
 
-@router.get("/solutions/{solution_id}", response_model=SolutionResponse)
+@router.get("/solutions/{solution_id}")
 async def get_solution_by_id(solution_id: int, db: Session = Depends(get_db)):
     """
     ดูเฉลยตาม ID (พร้อมรูปภาพ)
@@ -141,9 +185,22 @@ async def get_solution_by_id(solution_id: int, db: Session = Depends(get_db)):
     if not solution:
         raise HTTPException(status_code=404, detail="Solution not found")
     
-    return solution
+    return {
+        "id": solution.id,
+        "title": solution.title,
+        "answer_text": solution.answer_text,
+        "created_at": solution.created_at.isoformat() if solution.created_at else None,
+        "images": [
+            {
+                "id": img.id,
+                "image_path": img.image_path,
+                "image_order": img.image_order
+            }
+            for img in solution.images
+        ]
+    }
 
-@router.put("/solutions/{solution_id}", response_model=SolutionResponse)
+@router.put("/solutions/{solution_id}")
 async def update_solution(
     solution_id: int,
     title: str = Form(None),
@@ -168,7 +225,20 @@ async def update_solution(
         Solution.id == solution_id
     ).first()
     
-    return solution
+    return {
+        "id": solution.id,
+        "title": solution.title,
+        "answer_text": solution.answer_text,
+        "created_at": solution.created_at.isoformat() if solution.created_at else None,
+        "images": [
+            {
+                "id": img.id,
+                "image_path": img.image_path,
+                "image_order": img.image_order
+            }
+            for img in solution.images
+        ]
+    }
 
 @router.delete("/solutions/{solution_id}")
 async def delete_solution(solution_id: int, db: Session = Depends(get_db)):

@@ -1,47 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Bar } from 'react-chartjs-2';
-import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
-Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 const Login = () => {
-  const [questionCount, setQuestionCount] = useState(0);
-  const [solutionCount, setSolutionCount] = useState(0);
-  const [statLoading, setStatLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loggedInUsername, setLoggedInUsername] = useState('');
   const navigate = useNavigate();
 
   // ตรวจสอบสถานะ login เมื่อ component โหลด
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const username = localStorage.getItem('username');
+    const token = localStorage.getItem('token');
     if (token) {
-      setIsLoggedIn(true);
-      setLoggedInUsername(username || '');
+      // ถ้า login แล้ว redirect ไป dashboard ทันที
+      navigate('/admin/dashboard');
     }
-    // ดึงจำนวนโจทย์และเฉลย
-    const fetchStats = async () => {
-      setStatLoading(true);
-      try {
-        const qRes = await axios.get('http://localhost:8000/api/questions');
-        setQuestionCount(qRes.data.length);
-        const sRes = await axios.get('http://localhost:8000/api/solutions');
-        setSolutionCount(sRes.data.length);
-      } catch (err) {
-        setQuestionCount(0);
-        setSolutionCount(0);
-      } finally {
-        setStatLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
+  }, []); // ลบ navigate ออกจาก dependency เพื่อป้องกัน infinite loop
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,14 +30,10 @@ const Login = () => {
       });
 
       if (response.data.access_token) {
-        // เก็บ access token ใน localStorage
-        localStorage.setItem('access_token', response.data.access_token);
+        // เก็บ token ใน localStorage (ใช้ชื่อ 'token' ให้ตรงกับ ProtectedRoute)
+        localStorage.setItem('token', response.data.access_token);
         localStorage.setItem('token_type', response.data.token_type);
         localStorage.setItem('username', username);
-        
-        // อัพเดท state เพื่อแสดงเมนู admin
-        setIsLoggedIn(true);
-        setLoggedInUsername(username);
         
         // เปลี่ยนไปหน้า dashboard
         navigate('/admin/dashboard');
@@ -79,129 +50,7 @@ const Login = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('token_type');
-    localStorage.removeItem('username');
-    
-    // อัพเดท state เพื่อกลับไปหน้า login
-    setIsLoggedIn(false);
-    setLoggedInUsername('');
-    setUsername('');
-    setPassword('');
-    setError('');
-  };
-
-  // ถ้าล็อกอินแล้ว แสดงเมนูการจัดการ
-  if (isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
-        {/* Header */}
-        <div className="bg-white/10 backdrop-blur-sm border-b border-white/20">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">📚</span>
-              </div>
-              <h1 className="text-2xl font-bold text-white">Guru Web Admin</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-white/80">สวัสดี, {loggedInUsername}</span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500/20 hover:bg-red-500/30 text-red-200 hover:text-white px-4 py-2 rounded-lg border border-red-300/30 transition-all duration-200 backdrop-blur-sm"
-              >
-                ออกจากระบบ
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex items-center justify-center py-16 px-4">
-          <div className="max-w-4xl w-full">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-white mb-4">
-                ระบบจัดการโจทย์และเฉลย
-              </h2>
-              <p className="text-white/70 text-lg">
-                เลือกเมนูที่ต้องการจัดการ
-              </p>
-              {/* Dashboard Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 mb-8">
-                <div className="bg-blue-500/20 rounded-xl p-6 border border-blue-400/30 flex flex-col items-center justify-center">
-                  <span className="text-3xl mb-2">📝</span>
-                  <span className="text-2xl font-bold text-blue-200">{statLoading ? '...' : questionCount}</span>
-                  <p className="text-blue-300 text-sm mt-2">โจทย์ทั้งหมด</p>
-                </div>
-                <div className="bg-green-500/20 rounded-xl p-6 border border-green-400/30 flex flex-col items-center justify-center">
-                  <span className="text-3xl mb-2">✅</span>
-                  <span className="text-2xl font-bold text-green-200">{statLoading ? '...' : solutionCount}</span>
-                  <p className="text-green-300 text-sm mt-2">เฉลยทั้งหมด</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* เพิ่มโจทย์ */}
-              <Link to="/admin/add-question" className="group">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:bg-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <span className="text-3xl">➕</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">เพิ่มโจทย์</h3>
-                    <p className="text-white/70">เพิ่มโจทย์ใหม่เข้าสู่ระบบ</p>
-                  </div>
-                </div>
-              </Link>
-
-              {/* เพิ่มเฉลย */}
-              <Link to="/admin/add-solution" className="group">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:bg-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 rounded-2xl mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <span className="text-3xl">✅</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">เพิ่มเฉลย</h3>
-                    <p className="text-white/70">เพิ่มเฉลยสำหรับโจทย์</p>
-                  </div>
-                </div>
-              </Link>
-
-              {/* จัดการโจทย์ */}
-              <Link to="/admin/manage-questions" className="group">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:bg-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-purple-600 rounded-2xl mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <span className="text-3xl">📝</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">จัดการโจทย์</h3>
-                    <p className="text-white/70">แก้ไข ลบ และจัดการโจทย์</p>
-                  </div>
-                </div>
-              </Link>
-
-              {/* จัดการเฉลย */}
-              <Link to="/admin/manage-solutions" className="group">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:bg-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-2xl mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <span className="text-3xl">🔧</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">จัดการเฉลย</h3>
-                    <p className="text-white/70">แก้ไข ลบ และจัดการเฉลย</p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ถ้ายังไม่ล็อกอิน แสดงฟอร์มล็อกอิน
+  // ฟอร์ม Login
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">

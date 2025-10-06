@@ -193,12 +193,26 @@ function AdminManageSolutions() {
     }
   };
 
-  const filteredSolutions = solutions.filter(solution =>
-    solution.question?.book_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    solution.answer_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    solution.question?.page?.toString().includes(searchTerm) ||
-    solution.question?.question_no?.toString().includes(searchTerm)
-  );
+  // Filter solutions รองรับ Many-to-Many
+  const filteredSolutions = solutions.filter(solution => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // ค้นหาจาก answer_text หรือ title
+    if (solution.answer_text?.toLowerCase().includes(searchLower)) return true;
+    if (solution.title?.toLowerCase().includes(searchLower)) return true;
+    
+    // ค้นหาจากโจทย์ที่เชื่อมโยง
+    if (solution.linked_questions && solution.linked_questions.length > 0) {
+      return solution.linked_questions.some(q => 
+        q.book_id?.toLowerCase().includes(searchLower) ||
+        q.page?.toString().includes(searchTerm) ||
+        q.question_no?.toString().includes(searchTerm) ||
+        q.question_text?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return false;
+  });
 
   // Pagination
   const totalPages = Math.ceil(filteredSolutions.length / itemsPerPage);
@@ -389,10 +403,7 @@ function AdminManageSolutions() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-4 mb-2">
                         <h3 className="text-lg font-semibold text-white">
-                          {solution.question ? 
-                            `${solution.question.book_id} หน้า ${solution.question.page} ข้อ ${solution.question.question_no}` :
-                            'ข้อมูลโจทย์ไม่พบ'
-                          }
+                          {solution.title || `เฉลย ID: ${solution.id}`}
                         </h3>
                         <span className="text-sm text-white/60">
                           ID: {solution.id}
@@ -404,27 +415,42 @@ function AdminManageSolutions() {
                         )}
                       </div>
                       
-                      {/* แสดงข้อมูลโจทย์ */}
-                      {solution.question && (
-                        <div className="mb-3 p-3 bg-white/5 rounded-lg border border-white/10">
-                          <h4 className="text-white/80 font-medium mb-2">📝 โจทย์:</h4>
-                          {solution.question.question_text && (
-                            <p className="text-white/70 mb-2">
-                              {solution.question.question_text}
-                            </p>
-                          )}
-                          {solution.question.question_img && (
-                            <div className="mb-2">
-                              <img
-                                src={getImageUrl(solution.question.question_img)}
-                                alt="Question"
-                                className="max-w-xs h-auto rounded-lg border border-white/30"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
+                      {/* แสดงโจทย์ที่เชื่อมโยง (Many-to-Many) */}
+                      {solution.linked_questions && solution.linked_questions.length > 0 ? (
+                        <div className="mb-3 p-3 bg-blue-500/10 rounded-lg border border-blue-400/20">
+                          <h4 className="text-blue-200 font-medium mb-2">
+                            📝 โจทย์ที่เชื่อมโยง ({solution.linked_questions.length} โจทย์):
+                          </h4>
+                          {solution.linked_questions.map((question, idx) => (
+                            <div key={question.id} className="mb-3 last:mb-0 p-2 bg-white/5 rounded">
+                              <p className="text-white/90 font-medium">
+                                {idx + 1}. {question.book_id} หน้า {question.page} ข้อ {question.question_no}
+                              </p>
+                              {question.question_text && (
+                                <p className="text-white/70 text-sm mt-1">
+                                  {question.question_text}
+                                </p>
+                              )}
+                              {question.question_img && (
+                                <div className="mt-2">
+                                  <img
+                                    src={getImageUrl(question.question_img)}
+                                    alt="Question"
+                                    className="max-w-xs h-auto rounded-lg border border-white/30"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
                             </div>
-                          )}
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mb-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-400/20">
+                          <p className="text-yellow-200 text-sm">
+                            ⚠️ เฉลยนี้ยังไม่ได้เชื่อมโยงกับโจทย์ใด
+                          </p>
                         </div>
                       )}
                       
@@ -436,16 +462,25 @@ function AdminManageSolutions() {
                             {solution.answer_text}
                           </p>
                         )}
-                        {solution.answer_img && (
-                          <div className="mb-3">
-                            <img
-                              src={getImageUrl(solution.answer_img)}
-                              alt="Answer"
-                              className="max-w-xs h-auto rounded-lg border border-white/30"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                            />
+                        {solution.images && solution.images.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {solution.images
+                              .sort((a, b) => a.image_order - b.image_order)
+                              .map((img) => (
+                                <div key={img.id} className="relative">
+                                  <img
+                                    src={getImageUrl(img.image_path)}
+                                    alt={`Solution ${img.image_order + 1}`}
+                                    className="w-full h-auto rounded-lg border border-white/30"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                  <span className="absolute top-1 left-1 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                                    {img.image_order + 1}
+                                  </span>
+                                </div>
+                              ))}
                           </div>
                         )}
                       </div>
