@@ -1,12 +1,14 @@
 // Admin User Management Page
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../components/Notification';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
 const AdminManageUsers = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -66,91 +68,189 @@ const AdminManageUsers = () => {
   if (loading) return <LoadingSpinner message="กำลังโหลดรายการผู้ใช้..." />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              จัดการผู้ใช้
-            </h1>
+        {/* Back Button */}
+        <button
+          onClick={() => navigate('/admin/dashboard')}
+          className="group flex items-center gap-2 text-white hover:text-purple-200 font-semibold transition-all duration-200 mb-6"
+        >
+          <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          กลับไปหน้าหลัก
+        </button>
+
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-8 border border-white/20">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-3 rounded-xl">
+                <span className="text-3xl">👥</span>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">
+                  จัดการผู้ใช้
+                </h1>
+                <p className="text-white/70 text-sm mt-1">จัดการบัญชีผู้ใช้ในระบบ</p>
+              </div>
+            </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition"
+              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center gap-2 shadow-lg transform hover:scale-105"
             >
-              + เพิ่มผู้ใช้
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              เพิ่มผู้ใช้
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white rounded-lg">
-              <thead className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                <tr>
-                  <th className="px-6 py-3 text-left">ID</th>
-                  <th className="px-6 py-3 text-left">ชื่อผู้ใช้</th>
-                  <th className="px-6 py-3 text-left">วันที่สร้าง</th>
-                  <th className="px-6 py-3 text-center">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, index) => (
-                  <tr key={user.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="px-6 py-4">{user.id}</td>
-                    <td className="px-6 py-4 font-semibold">{user.username}</td>
-                    <td className="px-6 py-4">{new Date(user.created_at).toLocaleDateString('th-TH')}</td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600 transition"
-                      >
-                        ลบ
-                      </button>
-                    </td>
+          {users.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">👤</div>
+              <p className="text-white/70 text-lg">ยังไม่มีผู้ใช้ในระบบ</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gradient-to-r from-blue-500 to-purple-600">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-white font-semibold rounded-tl-xl">ID</th>
+                    <th className="px-6 py-4 text-left text-white font-semibold">ชื่อผู้ใช้</th>
+                    <th className="px-6 py-4 text-left text-white font-semibold">วันที่สร้าง</th>
+                    <th className="px-6 py-4 text-center text-white font-semibold rounded-tr-xl">จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((user, index) => (
+                    <tr 
+                      key={user.id} 
+                      className={`${index % 2 === 0 ? 'bg-white/5' : 'bg-white/10'} hover:bg-white/20 transition-colors duration-150`}
+                    >
+                      <td className="px-6 py-4 text-white font-mono">{user.id}</td>
+                      <td className="px-6 py-4 text-white font-semibold flex items-center gap-2">
+                        <span className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-sm">
+                          👤
+                        </span>
+                        {user.username}
+                      </td>
+                      <td className="px-6 py-4 text-white/80">
+                        {user.created_at 
+                          ? new Date(user.created_at).toLocaleDateString('th-TH', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '-'
+                        }
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {user.username.toLowerCase() === 'admin' ? (
+                          <div className="flex items-center justify-center gap-2 text-yellow-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            <span className="text-sm font-semibold">ป้องกัน</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="bg-gradient-to-r from-red-500 to-red-600 text-white px-5 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center gap-2 mx-auto shadow-md transform hover:scale-105"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            ลบ
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Total Users Count */}
+          <div className="mt-6 pt-4 border-t border-white/20">
+            <p className="text-white/70 text-center">
+              ทั้งหมด <span className="text-white font-bold text-lg">{users.length}</span> ผู้ใช้
+            </p>
           </div>
         </div>
       </div>
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">เพิ่มผู้ใช้ใหม่</h2>
-            <form onSubmit={handleAddUser}>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-semibold mb-2">ชื่อผู้ใช้</label>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-2xl p-8 max-w-md w-full border-2 border-white/20 shadow-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-3 rounded-xl">
+                <span className="text-2xl">👤</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white">เพิ่มผู้ใช้ใหม่</h2>
+            </div>
+            
+            <form onSubmit={handleAddUser} className="space-y-5">
+              <div>
+                <label className="flex items-center gap-2 text-white font-semibold mb-2">
+                  <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  ชื่อผู้ใช้
+                </label>
                 <input
                   type="text"
                   value={newUser.username}
                   onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/10 border-2 border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-200 backdrop-blur-sm"
+                  placeholder="กรอกชื่อผู้ใช้"
                   required
                 />
               </div>
-              <div className="mb-6">
-                <label className="block text-gray-700 font-semibold mb-2">รหัสผ่าน</label>
+              
+              <div>
+                <label className="flex items-center gap-2 text-white font-semibold mb-2">
+                  <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  รหัสผ่าน
+                </label>
                 <input
                   type="password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/10 border-2 border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-200 backdrop-blur-sm"
+                  placeholder="กรอกรหัสผ่าน"
                   required
+                  minLength={4}
                 />
+                <p className="text-white/60 text-sm mt-1">รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร</p>
               </div>
-              <div className="flex space-x-4">
+              
+              <div className="flex gap-4 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition"
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  เพิ่ม
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  เพิ่มผู้ใช้
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setNewUser({ username: '', password: '' });
+                  }}
+                  className="flex-1 bg-white/20 text-white py-3 rounded-xl hover:bg-white/30 transition-all duration-200 font-semibold backdrop-blur-sm flex items-center justify-center gap-2"
                 >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   ยกเลิก
                 </button>
               </div>

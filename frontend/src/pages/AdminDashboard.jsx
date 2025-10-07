@@ -76,6 +76,10 @@ function AdminDashboard() {
     navigate('/');
   };
 
+  // Get current username from localStorage
+  const currentUsername = localStorage.getItem('username') || '';
+  const isAdmin = currentUsername.toLowerCase() === 'admin';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 relative">
       {/* Header */}
@@ -88,7 +92,7 @@ function AdminDashboard() {
             <h1 className="text-2xl font-bold text-white">Guru Web Admin</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-white/80">สวัสดี admin</span>
+            <span className="text-white/80">{currentUsername}</span>
             <button
               onClick={handleLogout}
               className="bg-red-500/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
@@ -103,7 +107,7 @@ function AdminDashboard() {
       <div className="flex items-center justify-center py-8 px-4">
         <div className="max-w-6xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold text-white mb-4">ระบบจัดการโจทย์และเฉลย</h2>
+            <h2 className="text-4xl font-bold text-white mb-4">จัดการโจทย์และเฉลย</h2>
             <p className="text-white/80 text-lg">เลือกเมนูที่ต้องการจัดการ</p>
           </div>
 
@@ -122,7 +126,7 @@ function AdminDashboard() {
                     name="book_id"
                     value={searchForm.book_id}
                     onChange={handleInputChange}
-                    placeholder="เช่น IPL25122-0652"
+                    placeholder="รหัสหนังสือ"
                     className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
                   />
                 </div>
@@ -136,7 +140,7 @@ function AdminDashboard() {
                     name="page"
                     value={searchForm.page}
                     onChange={handleInputChange}
-                    placeholder="เช่น 5"
+                    placeholder="เลขหน้า"
                     min="1"
                     className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
                   />
@@ -151,7 +155,7 @@ function AdminDashboard() {
                     name="question_no"
                     value={searchForm.question_no}
                     onChange={handleInputChange}
-                    placeholder="เช่น 2"
+                    placeholder="เลขข้อ"
                     min="1"
                     className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200"
                   />
@@ -303,79 +307,50 @@ function AdminDashboard() {
           </div>
 
           {/* Management Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Add Question */}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6 mb-8`}>
+            {/* Add Question with Solution - Combined */}
             <div 
-              onClick={() => window.location.href = '/admin/add-question'}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02]"
+              onClick={() => window.location.href = '/admin/add-question-with-solution'}
+              className="bg-gradient-to-br from-violet-600/30 to-purple-600/30 backdrop-blur-sm rounded-2xl p-8 border-2 border-violet-400/50 hover:border-violet-300/70 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02] shadow-lg hover:shadow-violet-500/30"
             >
               <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-white text-3xl">➕</span>
+                <div className="w-20 h-20 bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl">
+                  <span className="text-white text-3xl">✏️</span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">เพิ่มโจทย์</h3>
-                <p className="text-white/70">เพิ่มโจทย์ใหม่ลงในระบบ</p>
+                <h3 className="text-xl font-bold text-white mb-2">⭐ เพิ่มโจทย์+เฉลย</h3>
+                <p className="text-violet-200 font-medium"></p>
               </div>
             </div>
 
-            {/* Add Solution */}
+            {/* Manage Question and Solutions - Combined */}
             <div 
-              onClick={() => window.location.href = '/admin/add-solution'}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02]"
+              onClick={() => window.location.href = '/admin/manage-question-and-solutions'}
+              className="bg-gradient-to-br from-indigo-600/30 to-blue-600/30 backdrop-blur-sm rounded-2xl p-8 border-2 border-indigo-400/50 hover:border-indigo-300/70 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02] shadow-lg hover:shadow-indigo-500/30"
             >
               <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-white text-3xl">✅</span>
+                <div className="w-20 h-20 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl">
+                  <span className="text-white text-3xl">📚</span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">เพิ่มเฉลย</h3>
-                <p className="text-white/70">สร้างเฉลยใหม่ (รองรับหลายรูป)</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Management Cards Row 2 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Link Question-Solution */}
-            <div 
-              onClick={() => window.location.href = '/admin/link-question-solution'}
-              className="bg-gradient-to-br from-orange-500/20 to-red-500/20 backdrop-blur-sm rounded-2xl p-8 border-2 border-orange-400/40 hover:border-orange-400/60 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02] shadow-lg"
-            >
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl">
-                  <span className="text-white text-3xl">🔗</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">⚡ เชื่อมโยงโจทย์-เฉลย</h3>
-                <p className="text-orange-200 font-medium">เชื่อมโยงโจทย์กับเฉลย (สำคัญ!)</p>
+                <h3 className="text-xl font-bold text-white mb-2">✨ จัดการโจทย์และเฉลย</h3>
+                <p className="text-indigo-200 font-medium"></p>
               </div>
             </div>
 
-            {/* Manage Questions */}
-            <div 
-              onClick={() => window.location.href = '/admin/manage-questions'}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02]"
-            >
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-white text-3xl">📄</span>
+            {/* Manage Users - Only show for admin */}
+            {isAdmin && (
+              <div 
+                onClick={() => window.location.href = '/admin/manage-users'}
+                className="bg-gradient-to-br from-purple-600/30 to-pink-600/30 backdrop-blur-sm rounded-2xl p-8 border-2 border-purple-400/50 hover:border-purple-300/70 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02] shadow-lg hover:shadow-purple-500/30"
+              >
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl">
+                    <span className="text-white text-3xl">👥</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">จัดการผู้ใช้</h3>
+                  <p className="text-purple-200 font-medium"></p>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">จัดการโจทย์</h3>
-                <p className="text-white/70">แก้ไข ลบ และจัดการโจทย์</p>
               </div>
-            </div>
-
-            {/* Manage Solutions */}
-            <div 
-              onClick={() => window.location.href = '/admin/manage-solutions'}
-              className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group transform hover:scale-[1.02]"
-            >
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-white text-3xl">🔧</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">จัดการเฉลย</h3>
-                <p className="text-white/70">แก้ไข ลบ และจัดการเฉลย</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

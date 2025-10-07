@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from database import get_db
-from models import Solution, SolutionImage, Question, QuestionSolution
+from models import Solution, SolutionImage, Question
 import os
 import uuid
 from pathlib import Path
@@ -56,6 +56,7 @@ class SolutionImageResponse(BaseModel):
 
 class SolutionResponse(BaseModel):
     id: int
+    question_id: int
     title: Optional[str] = None
     answer_text: Optional[str] = None
     created_at: datetime
@@ -64,25 +65,26 @@ class SolutionResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class QuestionSolutionResponse(BaseModel):
-    question_id: int
-    solution_id: int
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+# ==================== Solution CRUD ====================
 
-@router.post("/solutions")
-async def create_solution(
+@router.post("/questions/{question_id}/solutions")
+async def create_solution_for_question(
+    question_id: int,
     title: str = Form(None),
     answer_text: str = Form(""),
     db: Session = Depends(get_db)
 ):
     """
-    สร้างเฉลยใหม่ (ไม่ผูกกับโจทย์)
-    ใช้สำหรับสร้างเฉลยก่อน แล้วค่อยเชื่อมกับโจทย์ภายหลัง
+    สร้างเฉลยใหม่สำหรับโจทย์ (One-to-Many: 1 โจทย์มีหลายเฉลย)
     """
+    # ตรวจสอบว่าโจทย์มีอยู่จริง
+    question = db.query(Question).filter(Question.id == question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    # สร้างเฉลยใหม่ผูกกับโจทย์
     new_solution = Solution(
+        question_id=question_id,
         title=title if title else None,
         answer_text=answer_text if answer_text.strip() else None
     )
@@ -92,6 +94,7 @@ async def create_solution(
     
     return {
         "id": new_solution.id,
+        "question_id": new_solution.question_id,
         "title": new_solution.title,
         "answer_text": new_solution.answer_text,
         "created_at": new_solution.created_at.isoformat() if new_solution.created_at else None,
@@ -164,37 +167,27 @@ async def upload_solution_images(
 @router.get("/solutions")
 async def get_all_solutions(db: Session = Depends(get_db)):
     """
-    ดูเฉลยทั้งหมด (พร้อมรูปภาพและโจทย์ที่เชื่อมโยง)
+    ดูเฉลยทั้งหมด (พร้อมรูปภาพและข้อมูลโจทย์)
     """
-    solutions = db.query(Solution).options(joinedload(Solution.images)).all()
+    solutions = db.query(Solution).options(
+        joinedload(Solution.images),
+        joinedload(Solution.question)
+    ).all()
     
-    # แปลงเป็น dict พร้อมข้อมูลโจทย์ที่เชื่อมโยง
     result = []
     for solution in solutions:
-        # ดึงโจทย์ทั้งหมดที่เชื่อมกับเฉลยนี้
-        question_links = db.query(QuestionSolution).filter(
-            QuestionSolution.solution_id == solution.id
-        ).all()
-        
-        linked_questions = []
-        for link in question_links:
-            question = db.query(Question).filter(Question.id == link.question_id).first()
-            if question:
-                linked_questions.append({
-                    "id": question.id,
-                    "book_id": question.book_id,
-                    "page": question.page,
-                    "question_no": question.question_no,
-                    "question_text": question.question_text,
-                    "question_img": question.question_img
-                })
-        
         result.append({
             "id": solution.id,
+            "question_id": solution.question_id,
             "title": solution.title,
             "answer_text": solution.answer_text,
             "created_at": solution.created_at.isoformat() if solution.created_at else None,
-            "linked_questions": linked_questions,  # เพิ่มรายการโจทย์ที่เชื่อมโยง
+            "question": {
+                "id": solution.question.id,
+                "book_id": solution.question.book_id,
+                "page": solution.question.page,
+                "question_no": solution.question.question_no,
+            } if solution.question else None,
             "images": [
                 {
                     "id": img.id,
@@ -221,6 +214,7 @@ async def get_solution_by_id(solution_id: int, db: Session = Depends(get_db)):
     
     return {
         "id": solution.id,
+        "question_id": solution.question_id,
         "title": solution.title,
         "answer_text": solution.answer_text,
         "created_at": solution.created_at.isoformat() if solution.created_at else None,
@@ -261,6 +255,7 @@ async def update_solution(
     
     return {
         "id": solution.id,
+        "question_id": solution.question_id,
         "title": solution.title,
         "answer_text": solution.answer_text,
         "created_at": solution.created_at.isoformat() if solution.created_at else None,
@@ -277,7 +272,7 @@ async def update_solution(
 @router.delete("/solutions/{solution_id}")
 async def delete_solution(solution_id: int, db: Session = Depends(get_db)):
     """
-    ลบเฉลย (รูปภาพและ mapping จะถูกลบอัตโนมัติด้วย CASCADE)
+    ลบเฉลย (รูปภาพจะถูกลบอัตโนมัติด้วย CASCADE)
     """
     solution = db.query(Solution).filter(Solution.id == solution_id).first()
     if not solution:
@@ -321,104 +316,40 @@ async def delete_solution_image(
     
     return {"message": "Image deleted successfully"}
 
-# ==================== Question-Solution Mapping ====================
-
-@router.post("/questions/{question_id}/solutions/{solution_id}", response_model=QuestionSolutionResponse)
-async def link_question_solution(
-    question_id: int,
-    solution_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    เชื่อมโจทย์กับเฉลย (Many-to-Many)
-    """
-    # ตรวจสอบว่าโจทย์และเฉลยมีอยู่จริง
-    question = db.query(Question).filter(Question.id == question_id).first()
-    if not question:
-        raise HTTPException(status_code=404, detail="Question not found")
-    
-    solution = db.query(Solution).filter(Solution.id == solution_id).first()
-    if not solution:
-        raise HTTPException(status_code=404, detail="Solution not found")
-    
-    # ตรวจสอบว่ามีการเชื่อมแล้วหรือไม่
-    existing = db.query(QuestionSolution).filter(
-        QuestionSolution.question_id == question_id,
-        QuestionSolution.solution_id == solution_id
-    ).first()
-    
-    if existing:
-        raise HTTPException(status_code=400, detail="This question-solution link already exists")
-    
-    # สร้างการเชื่อม
-    link = QuestionSolution(
-        question_id=question_id,
-        solution_id=solution_id
-    )
-    db.add(link)
-    db.commit()
-    db.refresh(link)
-    
-    return link
-
-@router.delete("/questions/{question_id}/solutions/{solution_id}")
-async def unlink_question_solution(
-    question_id: int,
-    solution_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    ยกเลิกการเชื่อมโจทย์กับเฉลย
-    """
-    link = db.query(QuestionSolution).filter(
-        QuestionSolution.question_id == question_id,
-        QuestionSolution.solution_id == solution_id
-    ).first()
-    
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-    
-    db.delete(link)
-    db.commit()
-    
-    return {"message": "Question-solution link removed successfully"}
+# ==================== Query Solutions for Question ====================
 
 @router.get("/questions/{question_id}/solutions")
 async def get_solutions_for_question(question_id: int, db: Session = Depends(get_db)):
     """
-    ดูเฉลยทั้งหมดของโจทย์
+    ดูเฉลยทั้งหมดของโจทย์ (One-to-Many)
     """
     question = db.query(Question).filter(Question.id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
     
-    # JOIN เพื่อดึงเฉลยและรูปภาพ
-    links = db.query(QuestionSolution).filter(
-        QuestionSolution.question_id == question_id
+    # ดึงเฉลยทั้งหมดที่เป็นของโจทย์นี้
+    solutions = db.query(Solution).options(joinedload(Solution.images)).filter(
+        Solution.question_id == question_id
     ).all()
     
-    solutions = []
-    for link in links:
-        solution = db.query(Solution).options(joinedload(Solution.images)).filter(
-            Solution.id == link.solution_id
-        ).first()
-        if solution:
-            solutions.append({
-                "id": solution.id,
-                "title": solution.title,
-                "answer_text": solution.answer_text,
-                "created_at": solution.created_at,
-                "images": [
-                    {
-                        "id": img.id,
-                        "image_path": img.image_path,
-                        "image_order": img.image_order
-                    }
-                    for img in solution.images
-                ]
-            })
+    result = []
+    for solution in solutions:
+        result.append({
+            "id": solution.id,
+            "title": solution.title,
+            "answer_text": solution.answer_text,
+            "created_at": solution.created_at.isoformat() if solution.created_at else None,
+            "images": [
+                {
+                    "id": img.id,
+                    "image_path": img.image_path,
+                    "image_order": img.image_order
+                }
+                for img in sorted(solution.images, key=lambda x: x.image_order)
+            ]
+        })
     
-    return solutions
+    return result
 
 # ==================== Combined Query ====================
 
@@ -430,7 +361,7 @@ async def get_question_with_solutions(
     db: Session = Depends(get_db)
 ):
     """
-    แสดงโจทย์ + เฉลยทั้งหมด (JOIN question_solutions + solutions + solution_images)
+    แสดงโจทย์ + เฉลยทั้งหมด (One-to-Many)
     รองรับการค้นหาด้วยรหัสหนังสือแบบใหม่ (book_id) หรือแบบเก่า (old_book_id)
     """
     # หาโจทย์โดยใช้ reusable function
@@ -439,31 +370,27 @@ async def get_question_with_solutions(
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
     
-    # JOIN เพื่อดึงเฉลยและรูปภาพทั้งหมด
-    links = db.query(QuestionSolution).filter(
-        QuestionSolution.question_id == question.id
+    # ดึงเฉลยทั้งหมดของโจทย์นี้
+    solutions = db.query(Solution).options(joinedload(Solution.images)).filter(
+        Solution.question_id == question.id
     ).all()
     
-    solutions = []
-    for link in links:
-        solution = db.query(Solution).options(joinedload(Solution.images)).filter(
-            Solution.id == link.solution_id
-        ).first()
-        if solution:
-            solutions.append({
-                "id": solution.id,
-                "title": solution.title,
-                "answer_text": solution.answer_text,
-                "created_at": solution.created_at.isoformat() if solution.created_at else None,
-                "images": [
-                    {
-                        "id": img.id,
-                        "image_path": img.image_path,
-                        "image_order": img.image_order
-                    }
-                    for img in sorted(solution.images, key=lambda x: x.image_order)
-                ]
-            })
+    solution_list = []
+    for solution in solutions:
+        solution_list.append({
+            "id": solution.id,
+            "title": solution.title,
+            "answer_text": solution.answer_text,
+            "created_at": solution.created_at.isoformat() if solution.created_at else None,
+            "images": [
+                {
+                    "id": img.id,
+                    "image_path": img.image_path,
+                    "image_order": img.image_order
+                }
+                for img in sorted(solution.images, key=lambda x: x.image_order)
+            ]
+        })
     
     return {
         "question": {
@@ -476,5 +403,5 @@ async def get_question_with_solutions(
             "question_img": question.question_img,
             "created_at": question.created_at.isoformat() if question.created_at else None
         },
-        "solutions": solutions
+        "solutions": solution_list
     }

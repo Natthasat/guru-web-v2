@@ -23,33 +23,28 @@ class Question(Base):
     question_img = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
-    # Many-to-Many relationship with solutions through question_solutions
-    question_solutions = relationship("QuestionSolution", back_populates="question", cascade="all, delete-orphan")
-    
-    # Direct access to solutions (for easier querying)
-    solutions = relationship("Solution", secondary="question_solutions", viewonly=True)
+    # One-to-Many relationship: 1 question -> many solutions
+    solutions = relationship("Solution", back_populates="question", cascade="all, delete-orphan")
 
 class Solution(Base):
     """
-    ตารางเก็บเฉลยกลาง (ไม่ผูกกับโจทย์โดยตรง)
-    สามารถใช้เฉลยเดียวกันกับหลายโจทย์ได้
+    ตารางเก็บเฉลย (แต่ละเฉลยผูกกับโจทย์เดียว)
+    1 โจทย์สามารถมีหลายเฉลยได้
     """
     __tablename__ = "solutions"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    title = Column(String(255), nullable=True)  # ชื่อเฉลย (optional)
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=True)  # ชื่อเฉลย เช่น "วิธีที่ 1", "วิธีที่ 2"
     answer_text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
+    # Many-to-One relationship: many solutions -> 1 question
+    question = relationship("Question", back_populates="solutions")
+    
     # One-to-Many relationship with solution_images
     images = relationship("SolutionImage", back_populates="solution", cascade="all, delete-orphan")
-    
-    # Many-to-Many relationship with questions through question_solutions
-    question_solutions = relationship("QuestionSolution", back_populates="solution", cascade="all, delete-orphan")
-    
-    # Direct access to questions (for easier querying)
-    questions = relationship("Question", secondary="question_solutions", viewonly=True)
 
 class SolutionImage(Base):
     """
@@ -66,17 +61,4 @@ class SolutionImage(Base):
     # Relationship with solution
     solution = relationship("Solution", back_populates="images")
 
-class QuestionSolution(Base):
-    """
-    ตาราง mapping ระหว่าง questions ↔ solutions (Many-to-Many)
-    """
-    __tablename__ = "question_solutions"
-    
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
-    solution_id = Column(Integer, ForeignKey("solutions.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
-    # Relationships
-    question = relationship("Question", back_populates="question_solutions")
-    solution = relationship("Solution", back_populates="question_solutions")
+# ไม่ต้องใช้ QuestionSolution (junction table) อีกต่อไป เพราะเปลี่ยนเป็น One-to-Many แล้ว

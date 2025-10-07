@@ -56,10 +56,13 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-    created_at: str
+    created_at: str = None
     
     class Config:
         from_attributes = True
+        json_encoders = {
+            # Handle datetime serialization if needed
+        }
 
 class UserUpdate(BaseModel):
     password: str | None = None
@@ -73,7 +76,18 @@ async def get_all_users(
     try:
         users = db.query(User).all()
         logger.info(f"Admin {current_user.username} retrieved {len(users)} users")
-        return users
+        
+        # Convert datetime to string for each user
+        result = []
+        for user in users:
+            user_dict = {
+                "id": user.id,
+                "username": user.username,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            }
+            result.append(user_dict)
+        
+        return result
     except Exception as e:
         logger.error(f"Error getting users: {e}")
         raise HTTPException(
@@ -108,7 +122,13 @@ async def create_user(
         db.refresh(new_user)
         
         logger.info(f"Admin {current_user.username} created new user: {user.username}")
-        return new_user
+        
+        # Convert datetime to string
+        return {
+            "id": new_user.id,
+            "username": new_user.username,
+            "created_at": new_user.created_at.isoformat() if new_user.created_at else None
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -142,7 +162,13 @@ async def update_user(
         db.refresh(user)
         
         logger.info(f"Admin {current_user.username} updated user: {user.username}")
-        return user
+        
+        # Convert datetime to string
+        return {
+            "id": user.id,
+            "username": user.username,
+            "created_at": user.created_at.isoformat() if user.created_at else None
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -173,6 +199,13 @@ async def delete_user(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="ไม่พบผู้ใช้"
+            )
+        
+        # Prevent deleting admin user
+        if user.username.lower() == "admin":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ไม่สามารถลบบัญชี admin ได้"
             )
         
         username = user.username

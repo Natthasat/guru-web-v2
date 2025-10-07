@@ -1,11 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminAddQuestion from './pages/AdminAddQuestion';
-import AdminAddSolutionNew from './pages/AdminAddSolutionNew';
-import AdminLinkQuestionSolution from './pages/AdminLinkQuestionSolution';
-import AdminManageQuestions from './pages/AdminManageQuestions';
-import AdminManageSolutions from './pages/AdminManageSolutions';
+import AdminAddQuestionWithSolution from './pages/AdminAddQuestionWithSolution';
+import AdminManageQuestionAndSolutions from './pages/AdminManageQuestionAndSolutions';
 import AdminManageUsers from './pages/AdminManageUsers';
 import Login from './pages/Login';
 import SolutionSearch from './pages/SolutionSearch';
@@ -26,29 +23,14 @@ function App() {
                 <AdminDashboard />
               </ProtectedRoute>
             } />
-            <Route path="/admin/add-question" element={
+            <Route path="/admin/add-question-with-solution" element={
               <ProtectedRoute>
-                <AdminAddQuestion />
+                <AdminAddQuestionWithSolution />
               </ProtectedRoute>
             } />
-            <Route path="/admin/add-solution" element={
+            <Route path="/admin/manage-question-and-solutions" element={
               <ProtectedRoute>
-                <AdminAddSolutionNew />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/link-question-solution" element={
-              <ProtectedRoute>
-                <AdminLinkQuestionSolution />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/manage-questions" element={
-              <ProtectedRoute>
-                <AdminManageQuestions />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/manage-solutions" element={
-              <ProtectedRoute>
-                <AdminManageSolutions />
+                <AdminManageQuestionAndSolutions />
               </ProtectedRoute>
             } />
             <Route path="/admin/manage-users" element={
