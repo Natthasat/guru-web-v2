@@ -34,6 +34,14 @@ const SolutionSearch = () => {
     }
   };
 
+  // Handle Enter key press in search fields
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch(e);
+    }
+  };
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
@@ -63,6 +71,7 @@ const SolutionSearch = () => {
               className="w-full px-4 py-3 rounded-xl border border-white/30 bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all"
               value={bookId}
               onChange={(e) => setBookId(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="เช่น IPL5203-1051 หรือ 1710-0141"
               required
             />
@@ -76,6 +85,7 @@ const SolutionSearch = () => {
                 className="w-full px-4 py-3 rounded-xl border border-white/30 bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all"
                 value={page}
                 onChange={(e) => setPage(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="เช่น 5"
                 min="1"
                 required
@@ -88,6 +98,7 @@ const SolutionSearch = () => {
                 className="w-full px-4 py-3 rounded-xl border border-white/30 bg-white/10 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all"
                 value={questionNo}
                 onChange={(e) => setQuestionNo(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="เช่น 2"
                 min="1"
                 required
@@ -153,7 +164,7 @@ const SolutionSearch = () => {
                     <img 
                       src={getImageUrl(result.question.question_img)} 
                       alt="Question" 
-                      className="max-w-full rounded-lg border border-white/30 shadow-lg"
+                      className="max-w-full rounded-lg shadow-lg"
                       onError={(e) => {
                         e.target.style.display = 'none';
                       }}
@@ -199,18 +210,22 @@ const SolutionSearch = () => {
                         </p>
                         <div className="grid grid-cols-1 gap-4">
                           {solution.images.map((img, imgIndex) => (
-                            <div key={img.id} className="relative">
-                              <div className="absolute -top-2 -left-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold z-10">
-                                {imgIndex + 1}
+                            <div key={img.id} className="bg-white/5 rounded-xl p-4 border border-white/20">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg px-3 py-1.5 text-sm font-bold shadow-md">
+                                  รูปที่ {imgIndex + 1}
+                                </div>
                               </div>
-                              <img 
-                                src={getImageUrl(img.image_path)} 
-                                alt={`Solution step ${imgIndex + 1}`}
-                                className="w-full rounded-lg border border-white/30 shadow-lg"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
+                              <div className="bg-white/5 rounded-xl overflow-hidden">
+                                <img 
+                                  src={getImageUrl(img.image_path)} 
+                                  alt={`Solution step ${imgIndex + 1}`}
+                                  className="w-full object-contain"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>

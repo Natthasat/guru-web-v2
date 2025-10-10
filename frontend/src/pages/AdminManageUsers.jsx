@@ -1,6 +1,6 @@
 // Admin User Management Page
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios'; // ใช้ axios instance ที่มี interceptor
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../components/Notification';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,22 +13,76 @@ const AdminManageUsers = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', password: '' });
-  const { showSuccess, showError } = useNotification();
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
+    // Check token before fetching
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('❌ No token - redirecting to login');
+      setError('⚠️ กรุณาเข้าสู่ระบบก่อนใช้งาน');
+      setLoading(false);
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
     fetchUsers();
-  }, []);
+  }, [navigate]);
+
+  // Auto scroll to top when message changes
+  useEffect(() => {
+    if (successMessage || error) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+      
+      // Auto hide success message after 3 seconds
+      if (successMessage) {
+        const timer = setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [successMessage, error]);
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('❌ No token found in localStorage');
+        setError('⚠️ กรุณาเข้าสู่ระบบก่อนใช้งาน');
+        setTimeout(() => navigate('/login'), 1000);
+        return;
+      }
+
+      console.log('📡 Fetching users with token...');
       const response = await axios.get(`${API_BASE_URL}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUsers(response.data);
+      
+      console.log('Users data:', response.data); // Debug log
+      
+      if (Array.isArray(response.data)) {
+        setUsers(response.data);
+        setError('');
+      } else {
+        console.error('Invalid data format:', response.data);
+        setError('⚠️ รูปแบบข้อมูลไม่ถูกต้อง');
+        setUsers([]);
+      }
     } catch (error) {
-      showError('ไม่สามารถโหลดรายการผู้ใช้ได้');
       console.error('Error fetching users:', error);
+      
+      if (error.response?.status === 401) {
+        setError('⚠️ Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+        setTimeout(() => navigate('/login'), 2000);
+      } else {
+        setError(`❌ ไม่สามารถโหลดรายการผู้ใช้ได้: ${error.response?.data?.detail || error.message}`);
+      }
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -36,32 +90,54 @@ const AdminManageUsers = () => {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('⚠️ ไม่พบ Token กรุณาเข้าสู่ระบบใหม่');
+        return;
+      }
+      
       await axios.post(`${API_BASE_URL}/users`, newUser, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      showSuccess('เพิ่มผู้ใช้สำเร็จ');
+      
+      setSuccessMessage('🎉 เพิ่มผู้ใช้สำเร็จ!');
       setNewUser({ username: '', password: '' });
       setShowAddModal(false);
       fetchUsers();
     } catch (error) {
-      showError(error.response?.data?.detail || 'ไม่สามารถเพิ่มผู้ใช้ได้');
+      console.error('Error adding user:', error);
+      setError(`❌ ${error.response?.data?.detail || 'ไม่สามารถเพิ่มผู้ใช้ได้'}`);
     }
   };
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบผู้ใช้นี้?')) return;
 
+    setError('');
+    setSuccessMessage('');
+    
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('⚠️ ไม่พบ Token กรุณาเข้าสู่ระบบใหม่');
+        return;
+      }
+      
       await axios.delete(`${API_BASE_URL}/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      showSuccess('ลบผู้ใช้สำเร็จ');
+      
+      setSuccessMessage('🎉 ลบผู้ใช้สำเร็จ!');
       fetchUsers();
     } catch (error) {
-      showError(error.response?.data?.detail || 'ไม่สามารถลบผู้ใช้ได้');
+      console.error('Error deleting user:', error);
+      setError(`❌ ${error.response?.data?.detail || 'ไม่สามารถลบผู้ใช้ได้'}`);
     }
   };
 
@@ -82,6 +158,30 @@ const AdminManageUsers = () => {
         </button>
 
         <div className="bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-8 border border-white/20">
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 animate-pulse">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-green-800 font-semibold">{successMessage}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-red-800 font-semibold">{error}</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-3 rounded-xl">

@@ -24,11 +24,13 @@ Guru Web เป็นระบบที่พัฒนาขึ้นเพื�
 
 ## ✨ ฟีเจอร์หลัก
 
-### 🔐 ระบบผู้ใช้
+### 🔐 ระบบผู้ใช้และการยืนยันตัวตน
 - ✅ ระบบ Login/Logout ด้วย JWT Token
 - ✅ การจัดการผู้ใช้ (เฉพาะ Admin)
 - ✅ ป้องกันการลบ Admin
 - ✅ Role-based Access Control
+- ✅ **Axios Interceptor** - จัดการ Authentication แบบอัตโนมัติ
+- ✅ **Auto Redirect** - เมื่อ Session หมดอายุจะพากลับหน้า Login ทันที
 
 ### 📝 การจัดการโจทย์และเฉลย
 - ✅ **เพิ่มโจทย์พร้อมเฉลย** - ครบจบในหน้าเดียว
@@ -38,18 +40,38 @@ Guru Web เป็นระบบที่พัฒนาขึ้นเพื�
 - ✅ **จำค่า Book ID** - จดจำรหัสหนังสือล่าสุดอัตโนมัติ
 - ✅ **แก้ไข/ลบโจทย์และเฉลย** - จัดการข้อมูลได้สะดวก
 - ✅ **คลิกดูรูปภาพขยาย** - ดูรูปภาพแบบเต็มหน้าจอ
+- ✅ **จัดการโจทย์ขั้นสูง** - ระบบจัดการโจทย์แบบ Advanced พร้อม:
+  - ตาราง DataTable พร้อม Sort, Filter, Pagination
+  - แสดงสถานะโจทย์ (ขาดรูปวิธีทำ, ขาดเฉลย, ครบแล้ว)
+  - Sort ตามสถานะแบบ Custom Order
+  - Sort ตาม Updated By (ใครแก้ไขล่าสุด)
+  - แก้ไขและลบโจทย์ได้โดยตรง
+
+### 🔐 ถอดรหัสวิชา (Course Decoder)
+- ✅ **ถอดรหัส Book ID** - แปลงรหัสวิชาเป็นข้อมูลที่อ่านง่าย
+- ✅ **จัดการข้อมูลครู** - Admin สามารถเพิ่ม/แก้ไข/ลบข้อมูลครูได้ผ่านหน้าเว็บ
+- ✅ **Excel Integration** - เชื่อมต่อกับไฟล์ Excel สำหรับข้อมูลครู
+- ✅ **Auto Cache Reload** - อัพเดทข้อมูลทันทีโดยไม่ต้อง Restart Server
+- ✅ **Teacher CRUD System** - ระบบจัดการครูแบบครบวงจร:
+  - เพิ่มครูใหม่พร้อม Validation
+  - แก้ไขข้อมูลครู (ยกเว้นรหัสครู)
+  - ลบครูพร้อม Confirmation Modal ที่สวยงาม
+  - แสดงรายการครูทั้งหมดในตาราง
 
 ### 🔍 การค้นหา
 - ✅ ค้นหาด้วย Book ID + หน้า + ข้อที่
 - ✅ แสดงผลรวดเร็วพร้อมรูปภาพ
 - ✅ แสดงวันเวลาที่สร้าง (รูปแบบไทย)
+- ✅ ค้นหาและถอดรหัสวิชาในหน้า Dashboard
 
 ### 🎨 UI/UX
 - ✅ ธีมสีม่วง-น้ำเงิน-ฟ้า แบบ Gradient
 - ✅ Glass Morphism Effect
-- ✅ Responsive Design
+- ✅ Responsive Design (2x2 Cards Layout)
 - ✅ Auto Scroll เมื่อมีข้อความแจ้งเตือน
 - ✅ Loading States และ Error Handling
+- ✅ **Custom Modal Dialogs** - Confirmation dialogs ที่สวยงาม
+- ✅ **Toast Notifications** - แจ้งเตือนแบบ Real-time
 
 ## 📦 การติดตั้ง
 
@@ -149,27 +171,37 @@ guru-web/
 │   ├── auth.py                # JWT authentication
 │   ├── logger.py              # Logging
 │   ├── routes/                # API routes
+│   │   ├── __init__.py
 │   │   ├── questions.py       # โจทย์
 │   │   ├── solutions.py       # เฉลย
 │   │   ├── users.py           # ผู้ใช้
-│   │   └── auth.py            # Authentication
+│   │   ├── auth.py            # Authentication
+│   │   └── teachers.py        # จัดการข้อมูลครู (NEW!)
+│   ├── data/                  # ข้อมูล Excel
+│   │   └── ดิจิท.xlsx         # ข้อมูลครูสำหรับ Course Decoder
 │   ├── scripts/               # Utility scripts
 │   │   └── create_admin.py    # สร้าง admin
 │   ├── uploads/               # ไฟล์รูปภาพ
+│   ├── course_decoder.py      # ระบบถอดรหัสวิชา
 │   └── requirements.txt       # Python dependencies
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── App.js             # Main app
+│   │   ├── utils/             # Utilities
+│   │   │   └── axios.js       # Axios instance with interceptors (NEW!)
 │   │   ├── pages/             # หน้าต่างๆ
 │   │   │   ├── Login.jsx
 │   │   │   ├── AdminDashboard.jsx
 │   │   │   ├── AdminAddQuestionWithSolution.jsx
-│   │   │   ├── AdminManageQuestionAndSolutions.jsx
+│   │   │   ├── AdminManageQuestionsAdvanced.jsx  # (NEW!)
 │   │   │   ├── AdminManageUsers.jsx
+│   │   │   ├── AdminManageTeachers.jsx  # (NEW!)
 │   │   │   └── SolutionSearch.jsx
 │   │   └── components/        # Components
 │   │       ├── ProtectedRoute.jsx
+│   │       ├── QuestionImageCard.jsx
+│   │       ├── SolutionCard.jsx
 │   │       └── Notification.jsx
 │   ├── public/
 │   ├── package.json
@@ -185,11 +217,12 @@ guru-web/
 - `POST /api/auth/register` - สมัครสมาชิก
 
 ### Questions (โจทย์)
-- `GET /api/questions` - ดึงโจทย์ทั้งหมด
+- `GET /api/questions` - ดึงโจทย์ทั้งหมด (รองรับ sort, filter, pagination)
 - `POST /api/questions` - เพิ่มโจทย์
 - `GET /api/qa/{book_id}/{page}/{question_no}` - ค้นหาโจทย์
 - `PUT /api/questions/{id}` - แก้ไขโจทย์
 - `DELETE /api/questions/{id}` - ลบโจทย์
+- `GET /api/manage/questions` - ดึงโจทย์สำหรับหน้าจัดการ (พร้อมข้อมูลเฉลย)
 
 ### Solutions (เฉลย)
 - `GET /api/questions/{question_id}/solutions` - ดึงเฉลยทั้งหมด
@@ -201,6 +234,16 @@ guru-web/
 ### Users (ผู้ใช้)
 - `GET /api/users` - ดึงผู้ใช้ทั้งหมด
 - `DELETE /api/users/{id}` - ลบผู้ใช้
+
+### Teachers (ครู) - NEW!
+- `GET /api/teachers/list` - ดึงรายชื่อครูทั้งหมด
+- `POST /api/teachers/add` - เพิ่มครูใหม่
+- `PUT /api/teachers/{teacher_code}` - แก้ไขข้อมูลครู
+- `DELETE /api/teachers/{teacher_code}` - ลบครู
+- `GET /api/teachers/{teacher_code}` - ดูข้อมูลครูตามรหัส
+
+### Course Decoder - NEW!
+- `POST /api/course/decode` - ถอดรหัสวิชา (Book ID Format: AABCCDEEFF-GGGG)
 
 ## 💡 วิธีใช้งาน
 
@@ -266,13 +309,24 @@ guru-web/
 
 ## 📝 การพัฒนาต่อ
 
+### ฟีเจอร์ที่เพิ่มมาใหม่ในเวอร์ชั่นนี้
+- ✅ Axios Interceptor สำหรับ Global Authentication
+- ✅ ระบบจัดการโจทย์ขั้นสูง (Advanced Management)
+- ✅ Course Decoder System
+- ✅ Teacher Management System
+- ✅ Custom Sort Order สำหรับสถานะโจทย์
+- ✅ Beautiful Confirmation Modals
+- ✅ 2x2 Dashboard Cards Layout
+
 ### ฟีเจอร์ที่วางแผนไว้
 - [ ] Export ข้อมูลเป็น PDF
 - [ ] Import ข้อมูลจาก Excel
 - [ ] ระบบ Tag และ Category
-- [ ] การค้นหาแบบ Advanced
+- [ ] การค้นหาแบบ Advanced (Full-text search)
 - [ ] Dashboard Analytics
 - [ ] Notification System
+- [ ] Backup & Restore System
+- [ ] Multi-language Support
 
 ## 🤝 การมีส่วนร่วม
 
@@ -300,7 +354,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version:** 2.0  
-**Last Updated:** October 2025
+## 🆕 What's New in Version 2.5
+
+### Authentication & Security
+- 🔐 Axios Interceptor สำหรับจัดการ JWT Token อัตโนมัติ
+- 🔐 Auto-redirect เมื่อ Session หมดอายุ
+- 🔐 Centralized Error Handling
+
+### Question Management
+- 📊 Advanced Question Management Dashboard
+- 🔄 Custom Sort Order (Status: ขาดรูปวิธีทำ → ขาดเฉลย → ครบแล้ว)
+- 👤 Track Updated By (ผู้แก้ไขล่าสุด)
+- 🔍 Enhanced Filtering & Pagination
+
+### Course Decoder System
+- 🎓 ระบบถอดรหัสวิชาใหม่
+- 👨‍🏫 Teacher Management System (CRUD)
+- 📋 Excel Integration with Auto Cache Reload
+- ✨ Beautiful UI for Teacher Management
+
+### UI/UX Improvements
+- 🎨 2x2 Dashboard Cards Layout
+- 💫 Custom Confirmation Modals
+- 🎯 Better Component Architecture
+- 📱 Improved Responsive Design
+
+---
+
+**Version:** 2.5  
+**Last Updated:** October 10, 2025
 
 ⭐ ถ้าโปรเจคนี้มีประโยชน์ กรุณา Star ให้กับ Repository นี้ด้วยนะครับ! ⭐

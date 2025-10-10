@@ -7,16 +7,47 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true); // เพิ่ม state สำหรับเช็ค token
   const navigate = useNavigate();
 
   // ตรวจสอบสถานะ login เมื่อ component โหลด
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // ถ้า login แล้ว redirect ไป dashboard ทันที
-      navigate('/admin/dashboard');
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          // ตรวจสอบว่า token ยังใช้งานได้หรือไม่
+          await axios.get('http://localhost:8000/api/questions', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          // ถ้า token ยังใช้งานได้ redirect ไป dashboard
+          navigate('/admin/dashboard');
+        } catch (error) {
+          // ถ้า token หมดอายุหรือไม่ถูกต้อง ลบ token ออก
+          console.log('Token expired or invalid, clearing...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('token_type');
+          localStorage.removeItem('username');
+        }
+      }
+      // เสร็จแล้วให้แสดงหน้า login
+      setChecking(false);
+    };
+    
+    checkAuth();
   }, []); // ลบ navigate ออกจาก dependency เพื่อป้องกัน infinite loop
+
+  // แสดง loading ขณะกำลังเช็ค token
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg">กำลังตรวจสอบ...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,6 +78,14 @@ const Login = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
@@ -91,6 +130,7 @@ const Login = () => {
                     placeholder="กรอกชื่อผู้ใช้"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
               </div>
@@ -113,6 +153,7 @@ const Login = () => {
                     placeholder="กรอกรหัสผ่าน"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={handleKeyDown}
                   />
                 </div>
               </div>

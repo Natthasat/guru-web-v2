@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from database import engine
 from models import Base
-from routes import questions, solutions, auth, users
+from routes import questions, solutions, auth, users, question_list
 from config import settings
 from logger import app_logger
 import os
@@ -43,13 +43,28 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(questions.router, prefix="/api", tags=["questions"])
 app.include_router(solutions.router, prefix="/api", tags=["solutions"])
+app.include_router(question_list.router, prefix="/api/manage", tags=["question_management"])
+
+# Import course router
+from routes import course
+app.include_router(course.router, prefix="/api/course", tags=["course"])
+
+# Import teacher management router
+from routes import teachers
+app.include_router(teachers.router, prefix="/api", tags=["teachers"])
+
+# Import solution search router
+from routes import solution_search
+app.include_router(solution_search.router, prefix="/api", tags=["solution_search"])
 
 # เสิร์ฟไฟล์รูปภาพ
-uploads_dir = settings.UPLOAD_DIR
+# แปลง path ให้เป็น absolute path จาก directory ของ main.py
+uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "uploads"))
 if not os.path.exists(uploads_dir):
     os.makedirs(uploads_dir)
     app_logger.info(f"Created upload directory: {uploads_dir}")
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+app_logger.info(f"[OK] Serving uploads from: {uploads_dir}")
 
 @app.get("/")
 async def root():

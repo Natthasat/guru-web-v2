@@ -4,7 +4,9 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from database import get_db
-from models import Question
+from models import Question, QuestionMetadata
+from course_decoder import decode_course_code
+from status_helper import calculate_question_status, update_question_status
 import os
 import uuid
 from pathlib import Path
@@ -23,6 +25,7 @@ class QuestionCreate(BaseModel):
 class SolutionBasic(BaseModel):
     id: int
     title: Optional[str] = None
+    teacher_name: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -35,6 +38,7 @@ class QuestionResponse(BaseModel):
     question_no: int
     question_text: Optional[str] = None
     question_img: Optional[str] = None
+    status: str = 'ขาดเฉลย'  # สถานะโจทย์
     created_at: datetime
     solutions: List[SolutionBasic] = []
     
@@ -51,13 +55,26 @@ async def create_question(
     question_img: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """เพิ่มโจทย์ใหม่ (รองรับการอัปโหลดรูปภาพ + รหัสหนังสือแบบเก่า)"""
+    """เพิ่มโจทย์ใหม่ (รองรับการอัปโหลดรูปภาพ + รหัสหนังสือแบบเก่า + ป้องกันความซ้ำ)"""
     
     # Debug: แสดงข้อมูลที่ได้รับ
     print(f"📥 Received data:")
     print(f"   book_id: {book_id}")
     print(f"   old_book_id: {old_book_id} (type: {type(old_book_id)})")
     print(f"   page: {page}, question_no: {question_no}")
+    
+    # ตรวจสอบความซ้ำ
+    existing = db.query(Question).filter(
+        Question.book_id == book_id,
+        Question.page == page,
+        Question.question_no == question_no
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"โจทย์ซ้ำ! มีโจทย์ {book_id} หน้า {page} ข้อ {question_no} อยู่แล้ว (ID: {existing.id})"
+        )
     
     # จัดการการอัปโหลดรูปภาพ
     image_filename = None
@@ -75,12 +92,15 @@ async def create_question(
         if len(contents) > max_size:
             raise HTTPException(status_code=400, detail="ไฟล์มีขนาดใหญ่เกินไป (จำกัดที่ 5MB)")
         
-        # สร้างชื่อไฟล์ที่ไม่ซ้ำ
-        image_filename = f"{uuid.uuid4()}{file_extension}"
-        upload_path = Path("backend/uploads") / image_filename
+        # สร้างชื่อไฟล์แบบใหม่: [รหัสหนังสือ]_[หน้า]_[ข้อที่].ext
+        # ทำความสะอาดชื่อไฟล์ (เอาอักขระพิเศษออก)
+        safe_book_id = book_id.replace('/', '-').replace('\\', '-').replace(':', '-')
+        image_filename = f"{safe_book_id}_{page}_{question_no}{file_extension}"
         
-        # สร้างโฟลเดอร์ถ้าไม่มี
-        upload_path.parent.mkdir(parents=True, exist_ok=True)
+        # ใช้ path relative จาก backend/ directory
+        uploads_dir = Path(__file__).parent.parent / "uploads"
+        uploads_dir.mkdir(exist_ok=True)
+        upload_path = uploads_dir / image_filename
         
         # บันทึกไฟล์
         try:
@@ -105,6 +125,41 @@ async def create_question(
     db.commit()
     db.refresh(db_question)
     print(f"✅ Saved successfully! Question ID: {db_question.id}, old_book_id in DB: {db_question.old_book_id}")
+    
+    # ถอดรหัส book_id และสร้าง QuestionMetadata
+    try:
+        decoded = decode_course_code(book_id)
+        if decoded.get("success"):
+            metadata = QuestionMetadata(
+                question_id=db_question.id,
+                teacher_code=decoded.get("teacher_code"),
+                teacher_name=decoded.get("teacher_name"),
+                subject=decoded.get("subject"),
+                class_level=decoded.get("class_level"),
+                course_type=decoded.get("course_type"),
+                course_type_name=decoded.get("course_type_name"),
+                year=decoded.get("year"),
+                content_level=decoded.get("level"),
+                content_level_name=decoded.get("level_name"),
+                category=decoded.get("category"),
+                chapter=decoded.get("chapter"),
+                file_type=decoded.get("file_type"),
+                file_type_name=decoded.get("file_type_name"),
+                status='incomplete'  # สถานะเริ่มต้น
+            )
+            db.add(metadata)
+            db.commit()
+            print(f"📊 Metadata created: Teacher={decoded.get('teacher_name')}, Subject={decoded.get('subject')}")
+        else:
+            print(f"⚠️ Cannot decode book_id: {decoded.get('error')}")
+    except Exception as e:
+        print(f"❌ Error creating metadata: {e}")
+        # ไม่ raise error เพราะโจทย์ถูกสร้างแล้ว แค่ metadata ไม่สำเร็จ
+    
+    # อัพเดทสถานะโจทย์
+    update_question_status(db, db_question.id)
+    db.refresh(db_question)
+    
     return db_question
 
 @router.get("/questions", response_model=List[QuestionResponse])
@@ -122,6 +177,7 @@ async def update_question(
     page: int = Form(...),
     question_no: int = Form(...),
     question_text: str = Form(""),
+    updated_by: Optional[str] = Form(None),
     question_img: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -150,16 +206,20 @@ async def update_question(
         
         # ลบไฟล์เก่า (ถ้ามี)
         if db_question.question_img:
-            old_file_path = Path("backend") / db_question.question_img
+            # db_question.question_img = "uploads/xxx.png"
+            old_file_path = Path(__file__).parent.parent / db_question.question_img
             if old_file_path.exists():
                 old_file_path.unlink()
         
-        # สร้างชื่อไฟล์ใหม่
-        image_filename = f"{uuid.uuid4()}{file_extension}"
-        upload_path = Path("backend/uploads") / image_filename
+        # สร้างชื่อไฟล์แบบใหม่: [รหัสหนังสือ]_[หน้า]_[ข้อที่].ext
+        # ทำความสะอาดชื่อไฟล์ (เอาอักขระพิเศษออก)
+        safe_book_id = book_id.replace('/', '-').replace('\\', '-').replace(':', '-')
+        image_filename = f"{safe_book_id}_{page}_{question_no}{file_extension}"
         
-        # สร้างโฟลเดอร์ถ้าไม่มี
-        upload_path.parent.mkdir(parents=True, exist_ok=True)
+        # ใช้ path relative จาก backend/ directory
+        uploads_dir = Path(__file__).parent.parent / "uploads"
+        uploads_dir.mkdir(exist_ok=True)
+        upload_path = uploads_dir / image_filename
         
         # บันทึกไฟล์
         try:
@@ -177,6 +237,8 @@ async def update_question(
     db_question.question_no = question_no
     db_question.question_text = question_text if question_text else None
     db_question.question_img = image_filename
+    if updated_by:
+        db_question.updated_by = updated_by
     
     db.commit()
     db.refresh(db_question)
@@ -184,7 +246,8 @@ async def update_question(
 
 @router.delete("/questions/{question_id}")
 async def delete_question(question_id: int, db: Session = Depends(get_db)):
-    """ลบโจทย์ (รองรับ Many-to-Many architecture)"""
+    """ลบโจทย์พร้อมรูปภาพทั้งหมดที่เกี่ยวข้อง"""
+    from models import Solution, SolutionImage
     
     # ตรวจสอบว่าโจทย์มีอยู่จริง
     db_question = db.query(Question).filter(Question.id == question_id).first()
@@ -193,22 +256,36 @@ async def delete_question(question_id: int, db: Session = Depends(get_db)):
     
     # ลบไฟล์รูปภาพของโจทย์ (ถ้ามี)
     if db_question.question_img:
-        file_path = Path("backend") / db_question.question_img
+        file_path = Path(__file__).parent.parent / db_question.question_img
         if file_path.exists():
             try:
                 file_path.unlink()
+                print(f"✅ ลบรูปโจทย์: {db_question.question_img}")
             except Exception as e:
-                print(f"Warning: Cannot delete question image file: {e}")
+                print(f"⚠️ Warning: Cannot delete question image file: {e}")
     
-    # ลบความสัมพันธ์ใน question_solutions (CASCADE จะทำให้ลบอัตโนมัติ)
-    # ไม่ต้องลบ Solution เพราะอาจใช้กับโจทย์อื่นอยู่
-    # CASCADE DELETE ใน Foreign Key จะจัดการให้
+    # ดึงเฉลยทั้งหมดที่เกี่ยวข้องกับโจทย์นี้
+    solutions = db.query(Solution).filter(Solution.question_id == question_id).all()
     
-    # ลบโจทย์ (CASCADE จะลบ question_solutions ที่เกี่ยวข้องโดยอัตโนมัติ)
+    # ลบรูปภาพของเฉลยทั้งหมด
+    for solution in solutions:
+        solution_images = db.query(SolutionImage).filter(SolutionImage.solution_id == solution.id).all()
+        
+        for img in solution_images:
+            # ลบไฟล์รูปภาพจาก filesystem
+            img_path = Path(__file__).parent.parent / img.image_path
+            if img_path.exists():
+                try:
+                    img_path.unlink()
+                    print(f"✅ ลบรูปเฉลย: {img.image_path}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Cannot delete solution image file: {e}")
+    
+    # ลบโจทย์ (CASCADE จะลบ solutions และ solution_images โดยอัตโนมัติ)
     db.delete(db_question)
     db.commit()
     
-    return {"message": "ลบโจทย์สำเร็จแล้ว"}
+    return {"message": "ลบโจทย์และรูปภาพทั้งหมดสำเร็จแล้ว"}
 
 @router.get("/questions/{book_id}/{page}", response_model=List[QuestionResponse])
 async def get_questions_by_page(book_id: str, page: int, db: Session = Depends(get_db)):
