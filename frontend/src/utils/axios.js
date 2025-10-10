@@ -28,7 +28,8 @@ axiosInstance.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // ลบ token และข้อมูล user
       localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem('token_type');
+      localStorage.removeItem('username');
       
       // แสดงข้อความแจ้งเตือน
       console.error('🔒 Session หมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง');

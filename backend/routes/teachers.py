@@ -7,12 +7,39 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
+from models import User
+from auth import decode_access_token
+from fastapi.security import OAuth2PasswordBearer
 import pandas as pd
 from pathlib import Path
 import shutil
 import tempfile
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Dependency สำหรับตรวจสอบ user ที่ login
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """Get current authenticated user from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="ไม่สามารถยืนยันตัวตนได้",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    payload = decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    
+    username: str = payload.get("sub")
+    if username is None:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REFERENCE_FILE = BASE_DIR / "data" / "ดิจิท.xlsx"
@@ -65,9 +92,9 @@ def safe_write_excel(df, file_path, sheet_name):
         raise e
 
 @router.get("/teachers/list")
-async def list_all_teachers():
+async def list_all_teachers(current_user: User = Depends(get_current_user)):
     """
-    ดึงรายชื่อครูทั้งหมดจาก Excel
+    ดึงรายชื่อครูทั้งหมดจาก Excel (ต้อง login)
     """
     try:
         df = pd.read_excel(REFERENCE_FILE, sheet_name=SHEET_NAME)
@@ -102,9 +129,9 @@ async def list_all_teachers():
         raise HTTPException(status_code=500, detail=f"Error reading Excel: {str(e)}")
 
 @router.post("/teachers/add", response_model=dict)
-async def add_teacher(teacher: TeacherCreate):
+async def add_teacher(teacher: TeacherCreate, current_user: User = Depends(get_current_user)):
     """
-    เพิ่มครูใหม่ลงใน Excel
+    เพิ่มครูใหม่ลงใน Excel (ต้อง login)
     """
     try:
         # ตรวจสอบรหัสครู
@@ -168,9 +195,9 @@ async def add_teacher(teacher: TeacherCreate):
         raise HTTPException(status_code=500, detail=f"Error adding teacher: {str(e)}")
 
 @router.put("/teachers/{teacher_code}")
-async def update_teacher(teacher_code: str, teacher: TeacherUpdate):
+async def update_teacher(teacher_code: str, teacher: TeacherUpdate, current_user: User = Depends(get_current_user)):
     """
-    แก้ไขข้อมูลครู
+    แก้ไขข้อมูลครู (ต้อง login)
     """
     try:
         teacher_code = teacher_code.upper()
@@ -220,9 +247,9 @@ async def update_teacher(teacher_code: str, teacher: TeacherUpdate):
         raise HTTPException(status_code=500, detail=f"Error updating teacher: {str(e)}")
 
 @router.delete("/teachers/{teacher_code}")
-async def delete_teacher(teacher_code: str):
+async def delete_teacher(teacher_code: str, current_user: User = Depends(get_current_user)):
     """
-    ลบข้อมูลครู
+    ลบข้อมูลครู (ต้อง login)
     """
     try:
         teacher_code = teacher_code.upper()

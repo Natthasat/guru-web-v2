@@ -104,9 +104,10 @@ def decode_course_code(code: str) -> dict:
     # ลบช่องว่างและทำให้เป็นตัวพิมพ์ใหญ่
     code = code.strip().upper()
     
-    # รูปแบบ: AA B CC D EE - FF GG
+    # รูปแบบ: AA B CC D EE FF - GG GG หรือ AA B CC D EE - FF GG
     # รองรับทั้ง 1 ตัวอักษร (S,L,R,V,C,F,P,U) และ 2 ตัว (UP, LR)
-    pattern = r"^([A-Z]{2})([A-Z]{1,2})(\d{2})(\d)(\d{2})-?(\d{2})(\d{2})$"
+    # รองรับ EEFF เป็น 4 หลักหรือแยก EE-FF
+    pattern = r"^([A-Z]{2})([A-Z]{1,2})(\d{2})(\d)(\d{2})(\d{2})-?(\d{2})$"
     match = re.match(pattern, code)
     
     if not match:
